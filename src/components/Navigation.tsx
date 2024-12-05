@@ -23,14 +23,14 @@ export function Navigation() {
                   Discover
                 </Button>
               </Link>
-              <Link href="/liked">
-                <Button variant={pathname === '/liked' ? 'default' : 'ghost'}>
-                  Liked
-                </Button>
-              </Link>
               <Link href="/search">
                 <Button variant={pathname === '/search' ? 'default' : 'ghost'}>
                   Search
+                </Button>
+              </Link>
+              <Link href="/liked">
+                <Button variant={pathname === '/liked' ? 'default' : 'ghost'}>
+                  Liked
                 </Button>
               </Link>
               <Link href="/weekly">
@@ -45,9 +45,14 @@ export function Navigation() {
         <div className="flex items-center gap-2">
           {user ? (
             <div className="flex items-center gap-4">
-              <span className="text-sm text-muted-foreground">
-                {user.email}
-              </span>
+              <Link 
+                href="/profile" 
+                className={`text-sm hover:text-foreground transition-colors ${
+                  pathname === '/profile' ? 'text-foreground font-medium' : 'text-muted-foreground'
+                }`}
+              >
+                {user.displayName || 'User'}
+              </Link>
               <Button variant="outline" onClick={() => logout()}>
                 Sign Out
               </Button>

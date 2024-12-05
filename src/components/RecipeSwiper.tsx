@@ -8,10 +8,12 @@ import { getRandomRecipe } from '@/lib/mealdb';
 import type { Recipe } from '@/types/recipe';
 import { db } from '@/lib/firebase';
 import { collection, addDoc } from 'firebase/firestore';
+import { useAuth } from '@/lib/auth';
 
 export function RecipeSwiper() {
   const [currentRecipe, setCurrentRecipe] = useState<Recipe | null>(null);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
   const fetchNewRecipe = async () => {
     setLoading(true);
@@ -29,11 +31,12 @@ export function RecipeSwiper() {
   }, []);
 
   const handleLike = async () => {
-    if (currentRecipe) {
+    if (currentRecipe && user) {
       try {
         // Ensure all required fields are present and properly formatted
         const recipeToSave = {
           id: currentRecipe.id,
+          userId: user.uid,  // Add user ID to the recipe
           strMeal: currentRecipe.strMeal,
           strCategory: currentRecipe.strCategory,
           strInstructions: currentRecipe.strInstructions,

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, deleteDoc, doc, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { cleanupInvalidRecipes } from '@/lib/db-cleanup';
 import type { Recipe } from '@/types/recipe';
 import Link from 'next/link';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { useAuth } from '@/lib/auth';
 
 export default function LikedPage() {
   return (
@@ -25,6 +26,7 @@ function LikedRecipes() {
   const [cleaning, setCleaning] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(9);
+  const { user } = useAuth();
 
   // Calculate pagination values
   const totalPages = Math.ceil(recipes.length / pageSize);
@@ -46,8 +48,16 @@ function LikedRecipes() {
   }, [totalPages, currentPage]);
 
   const fetchLikedRecipes = async () => {
+    if (!user) return;
+    
     try {
-      const querySnapshot = await getDocs(collection(db, 'liked_recipes'));
+      // Simplified query without orderBy
+      const recipesQuery = query(
+        collection(db, 'liked_recipes'),
+        where('userId', '==', user.uid)
+      );
+      
+      const querySnapshot = await getDocs(recipesQuery);
       const recipesMap = new Map();
       const invalidDocs: string[] = [];
 
@@ -72,7 +82,13 @@ function LikedRecipes() {
         console.warn(`Found ${invalidDocs.length} invalid recipe documents`);
       }
 
-      setRecipes(Array.from(recipesMap.values()));
+      // Sort recipes by likedAt date after fetching
+      const recipesList = Array.from(recipesMap.values());
+      recipesList.sort((a, b) => {
+        return new Date(b.likedAt).getTime() - new Date(a.likedAt).getTime();
+      });
+
+      setRecipes(recipesList);
     } catch (error) {
       console.error('Error fetching liked recipes:', error);
     } finally {
@@ -82,7 +98,7 @@ function LikedRecipes() {
 
   useEffect(() => {
     fetchLikedRecipes();
-  }, []);
+  }, [user]);
 
   const handleCleanup = async () => {
     if (cleaning) return;
@@ -97,6 +113,18 @@ function LikedRecipes() {
       console.error('Error during cleanup:', error);
     } finally {
       setCleaning(false);
+    }
+  };
+
+  const handleDelete = async (recipeId: string, e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent navigation
+    if (window.confirm('Are you sure you want to remove this recipe?')) {
+      try {
+        await deleteDoc(doc(db, 'liked_recipes', recipeId));
+        setRecipes(prev => prev.filter(recipe => recipe.id !== recipeId));
+      } catch (error) {
+        console.error('Error deleting recipe:', error);
+      }
     }
   };
 
@@ -139,7 +167,29 @@ function LikedRecipes() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {currentRecipes.map((recipe) => (
               <Link key={recipe.id} href={`/recipe/${recipe.id}`}>
-                <Card className="cursor-pointer hover:shadow-lg transition-shadow h-full flex flex-col">
+                <Card className="cursor-pointer hover:shadow-lg transition-shadow h-full flex flex-col group relative">
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                    onClick={(e) => handleDelete(recipe.id, e)}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M3 6h18" />
+                      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                    </svg>
+                  </Button>
                   <CardHeader className="flex-none">
                     <CardTitle className="text-xl leading-tight min-h-[3rem] line-clamp-2">
                       {recipe.strMeal}
