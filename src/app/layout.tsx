@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Navigation } from '@/components/Navigation';
 import localFont from "next/font/local";
 import "./globals.css";
 
@@ -20,15 +21,14 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={geistSans.variable}>
         {children}
+        <Navigation />
       </body>
     </html>
   );
