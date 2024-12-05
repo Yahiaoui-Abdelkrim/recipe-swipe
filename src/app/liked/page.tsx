@@ -77,13 +77,18 @@ export default function LikedRecipes() {
     <main className="max-w-4xl mx-auto p-4 mb-20">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Liked Recipes</h1>
-        <Button 
-          onClick={handleCleanup} 
-          disabled={cleaning}
-          variant="outline"
-        >
-          {cleaning ? 'Cleaning...' : 'Clean Invalid Recipes'}
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={handleCleanup} 
+            disabled={cleaning}
+            variant="outline"
+          >
+            {cleaning ? 'Cleaning...' : 'Clean Invalid Recipes'}
+          </Button>
+          <Button onClick={() => window.location.href = '/add-recipe'}>
+            Add Recipe
+          </Button>
+        </div>
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {recipes.map((recipe) => (

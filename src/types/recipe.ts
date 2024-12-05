@@ -5,6 +5,7 @@ export interface Recipe {
   strInstructions: string;
   strMealThumb: string;
   strArea: string;
+  strSocialMediaLink?: string;
   ingredients: string[];
   measures: string[];
   lastUsedDate?: Date;
