@@ -9,8 +9,17 @@ import { validateAndSanitizeRecipe } from '@/lib/recipe-validator';
 import { cleanupInvalidRecipes } from '@/lib/db-cleanup';
 import type { Recipe } from '@/types/recipe';
 import Link from 'next/link';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
 
-export default function LikedRecipes() {
+export default function LikedPage() {
+  return (
+    <ProtectedRoute>
+      <LikedRecipes />
+    </ProtectedRoute>
+  );
+}
+
+function LikedRecipes() {
   const [recipes, setRecipes] = useState<(Recipe & { id: string })[]>([]);
   const [loading, setLoading] = useState(true);
   const [cleaning, setCleaning] = useState(false);

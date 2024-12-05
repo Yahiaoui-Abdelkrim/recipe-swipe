@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Navigation } from '@/components/Navigation';
+import { AuthProvider } from '@/contexts/AuthContext';
 import localFont from "next/font/local";
 import "./globals.css";
 
@@ -25,12 +26,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={geistSans.variable}>
-        <Navigation />
-        <div className="pt-20">
-          {children}
-        </div>
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body>
+        <AuthProvider>
+          <Navigation />
+          <div className="pt-20">
+            {children}
+          </div>
+        </AuthProvider>
       </body>
     </html>
   );

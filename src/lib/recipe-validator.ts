@@ -21,18 +21,41 @@ export function validateAndSanitizeRecipe(
   }
 
   try {
+    // Helper function to safely parse dates
+    const parseDateString = (dateStr: any): string => {
+      if (!dateStr) return new Date().toISOString();
+      try {
+        const date = new Date(dateStr);
+        // Check if the date is valid
+        if (isNaN(date.getTime())) return new Date().toISOString();
+        return date.toISOString();
+      } catch {
+        return new Date().toISOString();
+      }
+    };
+
     const sanitizedRecipe = {
+      idMeal: docId,
       id: docId,
-      strMeal: data.strMeal.trim(),
-      strCategory: data.strCategory.trim(),
-      strInstructions: data.strInstructions.trim(),
-      strMealThumb: data.strMealThumb,
+      strMeal: data.strMeal?.trim() || '',
+      strCategory: data.strCategory?.trim() || '',
+      strInstructions: data.strInstructions?.trim() || '',
+      strMealThumb: data.strMealThumb || '',
       strArea: (data.strArea || '').trim(),
-      ingredients: Array.isArray(data.ingredients) ? data.ingredients : [],
-      measures: Array.isArray(data.measures) ? data.measures : [],
-      lastUsedDate: data.lastUsedDate ? new Date(data.lastUsedDate) : undefined,
-      likedAt: data.likedAt ? new Date(data.likedAt) : new Date()
+      ingredients: Array.isArray(data.ingredients) ? data.ingredients.filter(Boolean).map((i: string) => i.trim()) : [],
+      measures: Array.isArray(data.measures) ? data.measures.filter(Boolean).map((m: string) => m.trim()) : [],
+      lastUsedDate: new Date(),
+      likedAt: parseDateString(data.likedAt)
     } as Recipe & { id: string };
+
+    // Additional validation after sanitization
+    if (!sanitizedRecipe.strMeal || !sanitizedRecipe.strCategory || 
+        !sanitizedRecipe.strInstructions || !sanitizedRecipe.strMealThumb) {
+      return {
+        isValid: false,
+        missingFields: requiredFields.filter(field => !sanitizedRecipe[field as keyof typeof sanitizedRecipe]),
+      };
+    }
 
     return {
       isValid: true,

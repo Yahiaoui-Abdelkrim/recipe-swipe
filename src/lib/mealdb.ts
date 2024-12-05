@@ -14,6 +14,17 @@ export async function searchRecipes(searchTerm: string): Promise<Recipe[]> {
   return data.meals ? data.meals.map(transformMealDBResponse) : [];
 }
 
+export async function getRecipeById(id: string): Promise<Recipe | null> {
+  try {
+    const response = await fetch(`${MEALDB_API_URL}/lookup.php?i=${encodeURIComponent(id)}`);
+    const data = await response.json();
+    return data.meals ? transformMealDBResponse(data.meals[0]) : null;
+  } catch (error) {
+    console.error('Error fetching recipe by ID:', error);
+    return null;
+  }
+}
+
 function transformMealDBResponse(meal: any): Recipe {
   const ingredients: string[] = [];
   const measures: string[] = [];
