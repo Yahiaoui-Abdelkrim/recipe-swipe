@@ -20,6 +20,7 @@
     "date-fns": "^4.1.0",
     "firebase": "^11.0.2",
     "framer-motion": "^11.13.1",
+    "lodash": "^4.17.21",
     "lucide-react": "^0.465.0",
     "next": "15.0.3",
     "react": "19.0.0-rc-66855b96-20241106",
@@ -28,6 +29,7 @@
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
+    "@types/lodash": "^4.17.13",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",

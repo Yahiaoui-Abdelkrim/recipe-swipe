@@ -20,6 +20,11 @@ export function Navigation() {
             Liked
           </Button>
         </Link>
+        <Link href="/search">
+          <Button variant={pathname === '/search' ? 'default' : 'ghost'}>
+            Search
+          </Button>
+        </Link>
         <Link href="/weekly">
           <Button variant={pathname === '/weekly' ? 'default' : 'ghost'}>
             Weekly Plan
