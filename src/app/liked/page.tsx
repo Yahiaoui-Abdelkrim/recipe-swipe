@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { validateAndSanitizeRecipe } from '@/lib/recipe-validator';
 import { cleanupInvalidRecipes } from '@/lib/db-cleanup';
 import type { Recipe } from '@/types/recipe';
+import Link from 'next/link';
 
 export default function LikedRecipes() {
   const [recipes, setRecipes] = useState<(Recipe & { id: string })[]>([]);
@@ -92,21 +93,27 @@ export default function LikedRecipes() {
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {recipes.map((recipe) => (
-          <Card key={recipe.id}>
-            <CardHeader>
-              <CardTitle className="text-xl">{recipe.strMeal}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <img 
-                src={recipe.strMealThumb} 
-                alt={recipe.strMeal}
-                className="w-full h-48 object-cover rounded-md"
-              />
-              <p className="mt-2 text-sm text-muted-foreground">
-                Category: {recipe.strCategory}
-              </p>
-            </CardContent>
-          </Card>
+          <Link key={recipe.id} href={`/recipe/${recipe.id}`}>
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow h-full flex flex-col">
+              <CardHeader className="flex-none">
+                <CardTitle className="text-xl leading-tight min-h-[3rem] line-clamp-2">
+                  {recipe.strMeal}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex-1 flex flex-col">
+                <div className="relative aspect-video mb-2 flex-none">
+                  <img 
+                    src={recipe.strMealThumb} 
+                    alt={recipe.strMeal}
+                    className="w-full h-full object-cover rounded-md"
+                  />
+                </div>
+                <div className="mt-auto">
+                  <p className="text-sm text-gray-600">{recipe.strCategory}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
         ))}
       </div>
     </main>

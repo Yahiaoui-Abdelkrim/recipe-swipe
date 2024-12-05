@@ -68,7 +68,7 @@ export function RecipeSwiper() {
   }
 
   return (
-    <div className="w-full max-w-md mx-auto">
+    <div className="w-full max-w-md mx-auto mb-20">
       <AnimatePresence mode="wait">
         <motion.div
           key={currentRecipe.id}
@@ -89,7 +89,7 @@ export function RecipeSwiper() {
               <h2 className="text-2xl font-bold mb-2">{currentRecipe.strMeal}</h2>
               <p className="text-sm text-gray-500 mb-4">{currentRecipe.strCategory}</p>
               
-              <div className="flex justify-center gap-4 mt-4">
+              <div className="flex justify-center gap-4">
                 <Button 
                   variant="outline" 
                   onClick={handleSkip}
