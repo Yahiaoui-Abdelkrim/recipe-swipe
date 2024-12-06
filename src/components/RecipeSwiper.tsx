@@ -7,13 +7,15 @@ import { Button } from "@/components/ui/button";
 import { getRandomRecipe } from '@/lib/mealdb';
 import type { Recipe } from '@/types/recipe';
 import { db } from '@/lib/firebase';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 import { useAuth } from '@/lib/auth';
+import { useToast } from '@/hooks/use-toast';
 
 export function RecipeSwiper() {
   const [currentRecipe, setCurrentRecipe] = useState<Recipe | null>(null);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+  const { toast } = useToast();
 
   const fetchNewRecipe = async () => {
     setLoading(true);
@@ -33,6 +35,23 @@ export function RecipeSwiper() {
   const handleLike = async () => {
     if (currentRecipe && user) {
       try {
+        // Check if the recipe is already liked by the user
+        const likedQuery = query(
+          collection(db, 'liked_recipes'),
+          where('userId', '==', user.uid),
+          where('id', '==', currentRecipe.id)
+        );
+        
+        const querySnapshot = await getDocs(likedQuery);
+        if (!querySnapshot.empty) {
+          toast({
+            title: "Already Liked",
+            description: "You've already liked this recipe!",
+            variant: "default",
+          });
+          return;
+        }
+
         // Ensure all required fields are present and properly formatted
         const recipeToSave = {
           id: currentRecipe.id,

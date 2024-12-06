@@ -12,4 +12,5 @@ export interface Recipe {
   dietaryRestrictions?: string[];
   likedAt?: string;
   lastUsedDate?: Date;
+  isCustomized?: boolean;
 }

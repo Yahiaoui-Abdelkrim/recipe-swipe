@@ -12,82 +12,117 @@ import Link from 'next/link';
 import { Heart } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
+import { useNavigation } from '@/contexts/NavigationContext';
+import { EditRecipeDialog } from '@/components/EditRecipeDialog';
+import { RestoreRecipeButton } from '@/components/RestoreRecipeButton';
 
 interface RecipeDetailsProps {
   params: Promise<{ id: string }>;
 }
 
 function RecipeContent({ id }: { id: string }) {
-  const [recipe, setRecipe] = useState<(Recipe & { id: string }) | null>(null);
+  const [recipe, setRecipe] = useState<(Recipe & { id: string; isCustomized?: boolean }) | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  const { previousPath } = useNavigation();
 
-  useEffect(() => {
-    const fetchRecipe = async () => {
-      try {
-        // First try to get from liked recipes
-        const docRef = doc(db, 'liked_recipes', id);
-        const docSnap = await getDoc(docRef);
+  const handleBack = () => {
+    router.push(previousPath);
+  };
 
-        if (docSnap.exists()) {
-          const docData = docSnap.data();
-          const docId = docSnap.id;
-          
-          if (docId && docData) {
-            const validationResult = validateAndSanitizeRecipe(docId, docData);
-            if (validationResult.isValid && validationResult.sanitizedRecipe) {
-              setRecipe(validationResult.sanitizedRecipe);
-              return;
-            }
+  const fetchRecipe = async () => {
+    try {
+      setLoading(true);
+      // First check for a customized version in user_recipes
+      const customizedRef = doc(db, 'user_recipes', id);
+      const customizedSnap = await getDoc(customizedRef);
+
+      if (customizedSnap.exists()) {
+        const docData = customizedSnap.data();
+        const docId = customizedSnap.id;
+        
+        if (docId && docData) {
+          const validationResult = validateAndSanitizeRecipe(docId, docData);
+          if (validationResult.isValid && validationResult.sanitizedRecipe) {
+            setRecipe({
+              ...validationResult.sanitizedRecipe,
+              isCustomized: true
+            });
+            return;
           }
         }
-
-        // If not found in liked recipes, try MealDB
-        const mealDbRecipe = await getRecipeById(id);
-        if (mealDbRecipe) {
-          setRecipe(mealDbRecipe);
-        } else {
-          setError('Recipe not found');
-        }
-      } catch (error) {
-        console.error('Error fetching recipe:', error);
-        setError('Failed to load recipe');
-      } finally {
-        setLoading(false);
       }
-    };
 
+      // Then check liked recipes
+      const likedRef = doc(db, 'liked_recipes', id);
+      const likedSnap = await getDoc(likedRef);
+      
+      if (likedSnap.exists()) {
+        const docData = likedSnap.data();
+        const docId = likedSnap.id;
+        
+        if (docId && docData) {
+          const validationResult = validateAndSanitizeRecipe(docId, docData);
+          if (validationResult.isValid && validationResult.sanitizedRecipe) {
+            setRecipe({
+              ...validationResult.sanitizedRecipe,
+              isCustomized: false
+            });
+            return;
+          }
+        }
+      }
+
+      // If not found in either collection, try MealDB
+      const mealDbRecipe = await getRecipeById(id);
+      if (mealDbRecipe) {
+        setRecipe({
+          ...mealDbRecipe,
+          isCustomized: false
+        });
+      } else {
+        setError('Recipe not found');
+      }
+    } catch (error) {
+      console.error('Error fetching recipe:', error);
+      setError('Failed to fetch recipe');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchRecipe();
   }, [id]);
 
-  if (loading) {
-    return <div className="text-center mt-8">Loading...</div>;
-  }
+  const handleRecipeUpdate = async (updatedRecipe: Recipe & { id: string }) => {
+    setRecipe(updatedRecipe);
+  };
 
-  if (error || !recipe) {
-    return (
-      <div className="max-w-4xl mx-auto p-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <p className="text-red-500 mb-4">{error}</p>
-              <Link href="/search">
-                <Button variant="outline">Back to Search</Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const handleRecipeRestore = async (originalRecipe: Recipe & { id: string }) => {
+    // Refetch the recipe to ensure we have the latest data
+    await fetchRecipe();
+  };
+
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>{error}</div>;
+  if (!recipe) return <div>Recipe not found</div>;
 
   return (
     <main className="max-w-2xl mx-auto p-4 mb-20">
       <div className="mb-4 flex items-center justify-between">
-        <Link href="/search">
-          <Button variant="ghost" size="sm">← Back</Button>
-        </Link>
-        <LikeButton recipe={recipe} />
+        <Button variant="ghost" size="sm" onClick={handleBack}>← Back</Button>
+        <div className="flex items-center gap-2">
+          <EditRecipeDialog recipe={recipe} onUpdate={handleRecipeUpdate} />
+          {recipe.isCustomized && (
+            <RestoreRecipeButton 
+              recipe={recipe} 
+              onRestore={handleRecipeRestore}
+            />
+          )}
+          <LikeButton recipe={recipe} />
+        </div>
       </div>
 
       <Card>
@@ -125,9 +160,9 @@ function RecipeContent({ id }: { id: string }) {
             <div>
               <h2 className="font-semibold mb-3">Instructions</h2>
               <div className="space-y-4 text-sm">
-                {recipe.strInstructions.split('\n').filter(Boolean).map((step, index) => (
+                {recipe?.strInstructions?.split('\n').filter(Boolean).map((step, index) => (
                   <p key={index}>{step}</p>
-                ))}
+                )) || <p>No instructions available</p>}
               </div>
             </div>
 
@@ -155,20 +190,25 @@ function LikeButton({ recipe }: { recipe: Recipe }) {
   const router = useRouter();
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !recipe?.id || !db) {
       setLoading(false);
       return;
     }
 
     const checkIfLiked = async () => {
-      const docRef = doc(db, 'liked_recipes', recipe.id);
-      const docSnap = await getDoc(docRef);
-      setIsLiked(docSnap.exists());
-      setLoading(false);
+      try {
+        const docRef = doc(db, 'liked_recipes', recipe.id);
+        const docSnap = await getDoc(docRef);
+        setIsLiked(docSnap.exists());
+      } catch (error) {
+        console.error('Error checking like status:', error);
+      } finally {
+        setLoading(false);
+      }
     };
 
     checkIfLiked();
-  }, [recipe.id, user]);
+  }, [recipe?.id, user]);
 
   const handleLike = async () => {
     if (!user) {
