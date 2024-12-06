@@ -1,15 +1,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, doc, setDoc, getDoc, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { validateAndSanitizeRecipe } from '@/lib/recipe-validator';
 import type { Recipe } from '@/types/recipe';
 import Link from 'next/link';
+import { useAuth } from '@/lib/auth';
+import { useToast } from '@/components/ui/use-toast';
 
 export default function WeeklyPlan() {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [weeklyRecipes, setWeeklyRecipes] = useState<(Recipe & { id: string })[]>([]);
   const [loading, setLoading] = useState(true);
   const [availableRecipes, setAvailableRecipes] = useState<(Recipe & { id: string })[]>([]);
@@ -21,58 +25,85 @@ export default function WeeklyPlan() {
 
   useEffect(() => {
     const fetchWeeklyRecipes = async () => {
+      if (!user) return;
+      
       try {
-        const querySnapshot = await getDocs(
-          query(collection(db, 'liked_recipes'), orderBy('likedAt', 'desc'))
-        );
+        // First, try to fetch existing weekly plan
+        const weeklyPlanRef = doc(db, 'weekly_plans', `${user.uid}_${currentWeek}`);
+        const weeklyPlanDoc = await getDoc(weeklyPlanRef);
         
-        const recipesMap = new Map();
-        const invalidDocs: string[] = [];
-
-        querySnapshot.docs.forEach(doc => {
-          const validationResult = validateAndSanitizeRecipe(doc.id, doc.data());
-          
-          if (!validationResult.isValid) {
-            invalidDocs.push(doc.id);
-            console.error(
-              `Recipe document ${doc.id} is invalid:`,
-              validationResult.missingFields.join(', ')
-            );
-            return;
-          }
-
-          if (validationResult.sanitizedRecipe && !recipesMap.has(validationResult.sanitizedRecipe.id)) {
-            recipesMap.set(validationResult.sanitizedRecipe.id, validationResult.sanitizedRecipe);
-          }
-        });
-
-        if (invalidDocs.length > 0) {
-          console.warn(`Found ${invalidDocs.length} invalid recipe documents`);
-        }
-
-        const allRecipes = Array.from(recipesMap.values());
-        setAvailableRecipes(allRecipes);
-        
-        // Initialize current week if not already set
-        if (!weeklyPlans[currentWeek]) {
-          const numRecipes = Math.min(7, allRecipes.length);
-          const shuffled = [...allRecipes].sort(() => 0.5 - Math.random());
-          const initialPlan = shuffled.slice(0, numRecipes);
+        if (weeklyPlanDoc.exists()) {
+          const planData = weeklyPlanDoc.data();
+          setWeeklyRecipes(planData.recipes);
           setWeeklyPlans(prev => ({
             ...prev,
-            [currentWeek]: initialPlan
+            [currentWeek]: planData.recipes
           }));
-          setWeeklyRecipes(initialPlan);
+          setIsValidated(planData.isValidated || false);
+        } else {
+          // If no existing plan, fetch from liked recipes
+          const querySnapshot = await getDocs(
+            query(
+              collection(db, 'liked_recipes'),
+              where('userId', '==', user.uid)
+              // Temporarily remove orderBy until index is created
+              // orderBy('likedAt', 'desc')
+            )
+          );
+          
+          const recipesMap = new Map();
+          const invalidDocs: string[] = [];
+
+          querySnapshot.docs.forEach(doc => {
+            const validationResult = validateAndSanitizeRecipe(doc.id, doc.data());
+            
+            if (!validationResult.isValid) {
+              invalidDocs.push(doc.id);
+              console.error(
+                `Recipe document ${doc.id} is invalid:`,
+                validationResult.missingFields.join(', ')
+              );
+              return;
+            }
+
+            if (validationResult.sanitizedRecipe && !recipesMap.has(validationResult.sanitizedRecipe.id)) {
+              recipesMap.set(validationResult.sanitizedRecipe.id, validationResult.sanitizedRecipe);
+            }
+          });
+
+          if (invalidDocs.length > 0) {
+            console.warn(`Found ${invalidDocs.length} invalid recipe documents`);
+          }
+
+          const allRecipes = Array.from(recipesMap.values());
+          setAvailableRecipes(allRecipes);
+          
+          // Initialize current week if not already set
+          if (!weeklyPlans[currentWeek]) {
+            const numRecipes = Math.min(7, allRecipes.length);
+            const shuffled = [...allRecipes].sort(() => 0.5 - Math.random());
+            const initialPlan = shuffled.slice(0, numRecipes);
+            setWeeklyPlans(prev => ({
+              ...prev,
+              [currentWeek]: initialPlan
+            }));
+            setWeeklyRecipes(initialPlan);
+          }
         }
       } catch (error) {
         console.error('Error fetching weekly recipes:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch weekly recipes. Please try again.",
+          variant: "destructive"
+        });
       } finally {
         setLoading(false);
       }
     };
 
     fetchWeeklyRecipes();
-  }, [currentWeek, weeklyPlans]);
+  }, [currentWeek, user]);
 
   const handleChangeRecipe = (index: number) => {
     if (isValidated) return;
@@ -83,7 +114,11 @@ export default function WeeklyPlan() {
     );
 
     if (availableNewRecipes.length === 0) {
-      alert('No more unique recipes available to swap!');
+      toast({
+        title: "No More Recipes",
+        description: "No more unique recipes available to swap!",
+        variant: "destructive"
+      });
       return;
     }
 
@@ -100,37 +135,121 @@ export default function WeeklyPlan() {
     }));
   };
 
-  const handleValidateWeeklyPlan = () => {
+  const handleValidateWeeklyPlan = async () => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to save your weekly plan.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     // Basic validation: check if we have 7 recipes
-    if (weeklyRecipes.length === 7) {
+    if (weeklyRecipes.length !== 7) {
+      toast({
+        title: "Validation Error",
+        description: "Your weekly plan must have 7 recipes to be validated!",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      // Save the validated plan to Firestore
+      const weeklyPlanRef = doc(db, 'weekly_plans', `${user.uid}_${currentWeek}`);
+      await setDoc(weeklyPlanRef, {
+        userId: user.uid,
+        week: currentWeek,
+        recipes: weeklyRecipes,
+        isValidated: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+
       setIsValidated(true);
-    } else {
-      alert('Your weekly plan must have 7 recipes to be validated!');
+      toast({
+        title: "Success",
+        description: "Weekly plan has been saved successfully!",
+      });
+    } catch (error) {
+      console.error('Error saving weekly plan:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save weekly plan. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
-  const handleEditPlan = () => {
-    setIsValidated(false);
+  const handleEditPlan = async () => {
+    if (!user) return;
+
+    try {
+      // Update the plan in Firestore to mark as not validated
+      const weeklyPlanRef = doc(db, 'weekly_plans', `${user.uid}_${currentWeek}`);
+      await setDoc(weeklyPlanRef, {
+        userId: user.uid,
+        week: currentWeek,
+        recipes: weeklyRecipes,
+        isValidated: false,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+
+      setIsValidated(false);
+      toast({
+        title: "Success",
+        description: "Weekly plan is now editable.",
+      });
+    } catch (error) {
+      console.error('Error updating weekly plan:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update weekly plan. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
-  const navigateWeek = (direction: 'prev' | 'next') => {
+  const navigateWeek = async (direction: 'prev' | 'next') => {
+    if (!user) return;
+
     const newWeek = direction === 'prev' ? currentWeek - 1 : currentWeek + 1;
     setCurrentWeek(newWeek);
     
-    // Load recipes for the new week if they exist, or generate new ones
-    if (weeklyPlans[newWeek]) {
-      setWeeklyRecipes(weeklyPlans[newWeek]);
-    } else {
-      const numRecipes = Math.min(7, availableRecipes.length);
-      const shuffled = [...availableRecipes].sort(() => 0.5 - Math.random());
-      const newPlan = shuffled.slice(0, numRecipes);
-      setWeeklyPlans(prev => ({
-        ...prev,
-        [newWeek]: newPlan
-      }));
-      setWeeklyRecipes(newPlan);
+    try {
+      // Try to load the plan for the new week from Firestore
+      const weeklyPlanRef = doc(db, 'weekly_plans', `${user.uid}_${newWeek}`);
+      const weeklyPlanDoc = await getDoc(weeklyPlanRef);
+      
+      if (weeklyPlanDoc.exists()) {
+        const planData = weeklyPlanDoc.data();
+        setWeeklyRecipes(planData.recipes);
+        setWeeklyPlans(prev => ({
+          ...prev,
+          [newWeek]: planData.recipes
+        }));
+        setIsValidated(planData.isValidated || false);
+      } else {
+        // If no existing plan, generate a new one
+        const numRecipes = Math.min(7, availableRecipes.length);
+        const shuffled = [...availableRecipes].sort(() => 0.5 - Math.random());
+        const newPlan = shuffled.slice(0, numRecipes);
+        setWeeklyPlans(prev => ({
+          ...prev,
+          [newWeek]: newPlan
+        }));
+        setWeeklyRecipes(newPlan);
+        setIsValidated(false);
+      }
+    } catch (error) {
+      console.error('Error navigating to new week:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load weekly plan. Please try again.",
+        variant: "destructive"
+      });
     }
-    setIsValidated(false);
   };
 
   const downloadIngredientsList = () => {
