@@ -10,7 +10,8 @@ import {
   sendEmailVerification,
   signInWithPopup,
 } from 'firebase/auth';
-import { auth, googleProvider } from '@/lib/firebase';
+import { auth, googleProvider, db } from '@/lib/firebase';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 
 interface AuthContextType {
   user: User | null;
@@ -28,8 +29,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Function to create/update user document in Firestore
+  const createOrUpdateUser = async (user: User) => {
+    const userRef = doc(db, 'users', user.uid);
+    const userSnap = await getDoc(userRef);
+
+    const userData = {
+      email: user.email,
+      displayName: user.displayName || null,
+      photoURL: user.photoURL || null,
+      lastLoginAt: serverTimestamp(),
+    };
+
+    if (!userSnap.exists()) {
+      // Create new user document
+      await setDoc(userRef, {
+        ...userData,
+        createdAt: serverTimestamp(),
+      });
+    } else {
+      // Update existing user document
+      await setDoc(userRef, userData, { merge: true });
+    }
+  };
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          await createOrUpdateUser(user);
+        } catch (error) {
+          console.error('Error updating user document:', error);
+        }
+      }
       setUser(user);
       setLoading(false);
     });
@@ -40,16 +72,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (email: string, password: string) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     if (userCredential.user) {
-      await sendEmailVerification(userCredential.user);
+      await Promise.all([
+        sendEmailVerification(userCredential.user),
+        createOrUpdateUser(userCredential.user)
+      ]);
     }
   };
 
   const signIn = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password);
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    await createOrUpdateUser(userCredential.user);
   };
 
   const signInWithGoogle = async () => {
-    await signInWithPopup(auth, googleProvider);
+    const userCredential = await signInWithPopup(auth, googleProvider);
+    await createOrUpdateUser(userCredential.user);
   };
 
   const logout = async () => {
