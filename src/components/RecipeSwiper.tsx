@@ -10,12 +10,15 @@ import { db } from '@/lib/firebase';
 import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
+import { toggleLike } from '@/utils/likeUtils';
+import { useRouter } from 'next/navigation';
 
 export function RecipeSwiper() {
   const [currentRecipe, setCurrentRecipe] = useState<Recipe | null>(null);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
 
   const fetchNewRecipe = async () => {
     setLoading(true);
@@ -32,52 +35,20 @@ export function RecipeSwiper() {
     fetchNewRecipe();
   }, []);
 
-  const handleLike = async () => {
-    if (currentRecipe && user) {
-      try {
-        // Check if the recipe is already liked by the user
-        const likedQuery = query(
-          collection(db, 'liked_recipes'),
-          where('userId', '==', user.uid),
-          where('id', '==', currentRecipe.id)
-        );
-        
-        const querySnapshot = await getDocs(likedQuery);
-        if (!querySnapshot.empty) {
-          toast({
-            title: "Already Liked",
-            description: "You've already liked this recipe!",
-            variant: "default",
-          });
-          return;
-        }
+  const handleLike = async (recipe: Recipe) => {
+    console.log('🔄 Like button clicked for recipe:', recipe.strMeal);
+    if (!user) {
+      console.log('❌ No user found - redirecting to sign in');
+      router.push('/auth/sign-in');
+      return;
+    }
 
-        // Ensure all required fields are present and properly formatted
-        const recipeToSave = {
-          id: currentRecipe.id,
-          userId: user.uid,  // Add user ID to the recipe
-          strMeal: currentRecipe.strMeal,
-          strCategory: currentRecipe.strCategory,
-          strInstructions: currentRecipe.strInstructions,
-          strMealThumb: currentRecipe.strMealThumb,
-          strArea: currentRecipe.strArea || '',
-          ingredients: currentRecipe.ingredients || [],
-          measures: currentRecipe.measures || [],
-          likedAt: new Date().toISOString(), // Store as ISO string for consistency
-        };
-        
-        // Validate required fields before saving
-        if (!recipeToSave.strMeal || !recipeToSave.strCategory || 
-            !recipeToSave.strInstructions || !recipeToSave.strMealThumb) {
-          console.error('Missing required fields in recipe:', recipeToSave);
-          return;
-        }
-        
-        await addDoc(collection(db, 'liked_recipes'), recipeToSave);
-        fetchNewRecipe();
-      } catch (error) {
-        console.error('Error saving recipe:', error);
-      }
+    try {
+      await toggleLike(recipe);
+      // Fetch new recipe after successful like/unlike
+      fetchNewRecipe();
+    } catch (error) {
+      console.error('❌ Error in handleLike:', error);
     }
   };
 
@@ -120,7 +91,7 @@ export function RecipeSwiper() {
                   Skip
                 </Button>
                 <Button 
-                  onClick={handleLike}
+                  onClick={() => handleLike(currentRecipe)}
                   className="w-24"
                 >
                   Like

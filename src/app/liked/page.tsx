@@ -51,13 +51,14 @@ function LikedRecipes() {
     if (!user) return;
     
     try {
-      // Simplified query without orderBy
-      const recipesQuery = query(
+      console.log('🔍 Fetching liked recipes for user:', user.uid);
+      const q = query(
         collection(db, 'liked_recipes'),
         where('userId', '==', user.uid)
       );
       
-      const querySnapshot = await getDocs(recipesQuery);
+      const querySnapshot = await getDocs(q);
+      console.log('📊 Found liked recipes:', querySnapshot.size);
       const recipesMap = new Map();
       const invalidDocs: string[] = [];
 
@@ -90,7 +91,7 @@ function LikedRecipes() {
 
       setRecipes(recipesList);
     } catch (error) {
-      console.error('Error fetching liked recipes:', error);
+      console.error('❌ Error fetching liked recipes:', error);
     } finally {
       setLoading(false);
     }

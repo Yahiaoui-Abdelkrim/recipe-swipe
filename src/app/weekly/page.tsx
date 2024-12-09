@@ -9,11 +9,12 @@ import { validateAndSanitizeRecipe } from '@/lib/recipe-validator';
 import type { Recipe } from '@/types/recipe';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast as useShadcnToast } from '@/components/ui/use-toast';
+import toast from 'react-hot-toast';
 
 export default function WeeklyPlan() {
   const { user } = useAuth();
-  const { toast } = useToast();
+  const { toast: shadowToast } = useShadcnToast();
   const [weeklyRecipes, setWeeklyRecipes] = useState<(Recipe & { id: string })[]>([]);
   const [loading, setLoading] = useState(true);
   const [availableRecipes, setAvailableRecipes] = useState<(Recipe & { id: string })[]>([]);
@@ -92,9 +93,9 @@ export default function WeeklyPlan() {
         }
       } catch (error) {
         console.error('Error fetching weekly recipes:', error);
-        toast({
+        shadowToast({
           title: "Error",
-          description: "Failed to fetch weekly recipes. Please try again.",
+          description: "Failed to load weekly plan. Please try again.",
           variant: "destructive"
         });
       } finally {
@@ -106,24 +107,35 @@ export default function WeeklyPlan() {
   }, [currentWeek, user]);
 
   const handleChangeRecipe = (index: number) => {
-    if (isValidated) return;
+    console.log('🔄 Starting recipe change for index:', index);
+    
+    if (isValidated) {
+      console.log('❌ Cannot change recipe - plan is validated');
+      return;
+    }
+    
+    console.log('📊 Current recipes:', {
+      total: weeklyRecipes.length,
+      available: availableRecipes.length,
+      currentIds: weeklyRecipes.map(r => r.id)
+    });
     
     const currentRecipeIds = weeklyRecipes.map(recipe => recipe.id);
     const availableNewRecipes = availableRecipes.filter(
       recipe => !currentRecipeIds.includes(recipe.id)
     );
 
+    console.log('📊 Available new recipes:', availableNewRecipes.length);
+
     if (availableNewRecipes.length === 0) {
-      toast({
-        title: "No More Recipes",
-        description: "No more unique recipes available to swap!",
-        variant: "destructive"
-      });
+      console.log('❌ No more recipes available to swap');
+      toast.error('No more unique recipes available to swap!');
       return;
     }
 
     const randomIndex = Math.floor(Math.random() * availableNewRecipes.length);
     const newRecipe = availableNewRecipes[randomIndex];
+    console.log('✅ Selected new recipe:', newRecipe.id, newRecipe.strMeal);
 
     const updatedRecipes = [...weeklyRecipes];
     updatedRecipes[index] = newRecipe;
@@ -133,11 +145,14 @@ export default function WeeklyPlan() {
       ...prev,
       [currentWeek]: updatedRecipes
     }));
+    console.log('✅ Recipe change completed');
   };
 
   const handleValidateWeeklyPlan = async () => {
+    console.log('🔄 Starting weekly plan validation');
     if (!user) {
-      toast({
+      console.log('❌ No user found during validation');
+      shadowToast({
         title: "Authentication Required",
         description: "Please sign in to save your weekly plan.",
         variant: "destructive"
@@ -145,9 +160,10 @@ export default function WeeklyPlan() {
       return;
     }
 
-    // Basic validation: check if we have 7 recipes
+    console.log('📊 Current weekly recipes count:', weeklyRecipes.length);
     if (weeklyRecipes.length !== 7) {
-      toast({
+      console.log('❌ Invalid recipe count:', weeklyRecipes.length);
+      shadowToast({
         title: "Validation Error",
         description: "Your weekly plan must have 7 recipes to be validated!",
         variant: "destructive"
@@ -156,7 +172,7 @@ export default function WeeklyPlan() {
     }
 
     try {
-      // Save the validated plan to Firestore
+      console.log('💾 Saving weekly plan to Firestore');
       const weeklyPlanRef = doc(db, 'weekly_plans', `${user.uid}_${currentWeek}`);
       await setDoc(weeklyPlanRef, {
         userId: user.uid,
@@ -167,18 +183,12 @@ export default function WeeklyPlan() {
         updatedAt: new Date().toISOString()
       });
 
+      console.log('✅ Weekly plan saved successfully');
       setIsValidated(true);
-      toast({
-        title: "Success",
-        description: "Weekly plan has been saved successfully!",
-      });
+      toast.success('Weekly plan has been saved successfully!');
     } catch (error) {
-      console.error('Error saving weekly plan:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save weekly plan. Please try again.",
-        variant: "destructive"
-      });
+      console.error('❌ Error saving weekly plan:', error);
+      toast.error('Failed to save weekly plan. Please try again.');
     }
   };
 
@@ -197,17 +207,10 @@ export default function WeeklyPlan() {
       }, { merge: true });
 
       setIsValidated(false);
-      toast({
-        title: "Success",
-        description: "Weekly plan is now editable.",
-      });
+      toast.success('Weekly plan is now editable.');
     } catch (error) {
       console.error('Error updating weekly plan:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update weekly plan. Please try again.",
-        variant: "destructive"
-      });
+      toast.error('Failed to update weekly plan. Please try again.');
     }
   };
 
@@ -244,11 +247,7 @@ export default function WeeklyPlan() {
       }
     } catch (error) {
       console.error('Error navigating to new week:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load weekly plan. Please try again.",
-        variant: "destructive"
-      });
+      toast.error('Failed to load weekly plan. Please try again.');
     }
   };
 

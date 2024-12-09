@@ -15,6 +15,8 @@ import { useAuth } from '@/lib/auth';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { EditRecipeDialog } from '@/components/EditRecipeDialog';
 import { RestoreRecipeButton } from '@/components/RestoreRecipeButton';
+import toast from 'react-hot-toast';
+import { toggleLike } from '@/utils/likeUtils';
 
 interface RecipeDetailsProps {
   params: Promise<{ id: string }>;
@@ -98,6 +100,7 @@ function RecipeContent({ id }: { id: string }) {
 
   const handleRecipeUpdate = async (updatedRecipe: Recipe & { id: string }) => {
     setRecipe(updatedRecipe);
+    toast.success('Recipe updated successfully');
   };
 
   const handleRecipeRestore = async (originalRecipe: Recipe & { id: string }) => {
@@ -196,12 +199,15 @@ function LikeButton({ recipe }: { recipe: Recipe }) {
     }
 
     const checkIfLiked = async () => {
+      console.log('🔍 Checking if recipe is liked:', recipe.id);
       try {
         const docRef = doc(db, 'liked_recipes', recipe.id);
         const docSnap = await getDoc(docRef);
-        setIsLiked(docSnap.exists());
+        const liked = docSnap.exists();
+        console.log('📊 Recipe liked status:', liked);
+        setIsLiked(liked);
       } catch (error) {
-        console.error('Error checking like status:', error);
+        console.error('❌ Error checking like status:', error);
       } finally {
         setLoading(false);
       }
@@ -211,49 +217,26 @@ function LikeButton({ recipe }: { recipe: Recipe }) {
   }, [recipe?.id, user]);
 
   const handleLike = async () => {
+    console.log('🔄 Like button clicked');
+    console.log('Current isLiked state:', isLiked);
+    console.log('Recipe data:', recipe);
+    
     if (!user) {
+      console.log('❌ No user found - redirecting to sign in');
       router.push('/auth/sign-in');
       return;
     }
 
     setLoading(true);
-    const docRef = doc(db, 'liked_recipes', recipe.id);
-
     try {
-      if (isLiked) {
-        await deleteDoc(docRef);
-        setIsLiked(false);
-      } else {
-        // Prepare the recipe data without the id field
-        const { id, idMeal, ...recipeData } = recipe;
-        
-        // Ensure all required fields are present
-        const recipeToValidate = {
-          ...recipeData,
-          idMeal: id,
-          id: id,
-          ingredients: recipe.ingredients || [],
-          measures: recipe.measures || [],
-          likedAt: new Date().toISOString()
-        };
-
-        const validationResult = validateAndSanitizeRecipe(id, recipeToValidate);
-        
-        if (!validationResult.isValid) {
-          console.error('Recipe validation failed:', validationResult.missingFields);
-          return;
-        }
-
-        if (validationResult.sanitizedRecipe) {
-          await setDoc(docRef, validationResult.sanitizedRecipe);
-          setIsLiked(true);
-        }
-      }
+      await toggleLike(recipe);
+      setIsLiked(!isLiked); // Toggle the local state after successful operation
+      console.log('✅ Like operation completed. New isLiked state:', !isLiked);
     } catch (error) {
-      console.error('Error updating like status:', error);
+      console.error('❌ Error in handleLike:', error);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
