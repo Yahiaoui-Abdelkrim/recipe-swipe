@@ -38,7 +38,9 @@ export function Navigation() {
         </div>
 
         <div className="absolute left-1/2 transform -translate-x-1/2">
-          <h1 className="text-xl font-bold">140 Recipes</h1>
+          <Link href="/">
+            <h1 className="text-xl font-bold hover:text-primary cursor-pointer">140 Recipes</h1>
+          </Link>
         </div>
 
         <div className="flex items-center gap-2">

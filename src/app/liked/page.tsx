@@ -25,7 +25,6 @@ export default function LikedPage() {
 function LikedRecipes() {
   const [recipes, setRecipes] = useState<(Recipe & { id: string })[]>([]);
   const [loading, setLoading] = useState(true);
-  const [cleaning, setCleaning] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(9);
   const { user } = useAuth();
@@ -98,22 +97,6 @@ function LikedRecipes() {
     fetchLikedRecipes();
   }, [user]);
 
-  const handleCleanup = async () => {
-    if (cleaning) return;
-    
-    setCleaning(true);
-    try {
-      const results = await cleanupInvalidRecipes();
-      console.log('Cleanup completed:', results);
-      // Refresh the recipes list after cleanup
-      await fetchLikedRecipes();
-    } catch (error) {
-      console.error('Error during cleanup:', error);
-    } finally {
-      setCleaning(false);
-    }
-  };
-
   const handleDelete = async (recipeId: string, e: React.MouseEvent) => {
     e.preventDefault(); // Prevent navigation
     if (window.confirm('Are you sure you want to remove this recipe?')) {
@@ -145,13 +128,6 @@ function LikedRecipes() {
             <option value="12">12 per page</option>
             <option value="15">15 per page</option>
           </select>
-          <Button 
-            onClick={handleCleanup} 
-            disabled={cleaning}
-            variant="outline"
-          >
-            {cleaning ? 'Cleaning...' : 'Clean Invalid Recipes'}
-          </Button>
           <Button onClick={() => window.location.href = '/add-recipe'}>
             Add Recipe
           </Button>
@@ -231,40 +207,17 @@ function LikedRecipes() {
             <div className="flex justify-center gap-2">
               <Button
                 variant="outline"
-                onClick={() => setCurrentPage(1)}
-                disabled={currentPage === 1}
-                size="sm"
-              >
-                First
-              </Button>
-              <Button
-                variant="outline"
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
-                size="sm"
               >
                 Previous
               </Button>
-              <div className="flex items-center gap-2 px-4">
-                <span>
-                  Page {currentPage} of {totalPages}
-                </span>
-              </div>
               <Button
                 variant="outline"
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
-                size="sm"
               >
                 Next
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setCurrentPage(totalPages)}
-                disabled={currentPage === totalPages}
-                size="sm"
-              >
-                Last
               </Button>
             </div>
           </div>
