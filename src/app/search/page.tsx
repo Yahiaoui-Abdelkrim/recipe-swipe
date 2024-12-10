@@ -20,16 +20,7 @@ export default function SearchPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(false);
-  const [filters, setFilters] = useState<DietaryFilter[]>([
-    { id: 'vegetarian', label: 'Vegetarian', active: false },
-    { id: 'vegan', label: 'Vegan', active: false },
-    { id: 'gluten-free', label: 'Gluten-Free', active: false },
-    { id: 'dairy-free', label: 'Dairy-Free', active: false },
-    { id: 'nut-free', label: 'Nut-Free', active: false },
-    { id: 'keto', label: 'Keto', active: false },
-    { id: 'paleo', label: 'Paleo', active: false },
-  ]);
-
+  
   const debouncedSearch = debounce(async (term: string) => {
     if (!term.trim()) {
       setRecipes([]);
@@ -54,19 +45,6 @@ export default function SearchPage() {
     };
   }, [searchTerm]);
 
-  const toggleFilter = (filterId: string) => {
-    setFilters(filters.map(filter => 
-      filter.id === filterId ? { ...filter, active: !filter.active } : filter
-    ));
-  };
-
-  const filteredRecipes = recipes.filter(recipe => {
-    if (!filters.some(f => f.active)) return true;
-    // Note: MealDB API doesn't provide dietary information, so this is a placeholder
-    // You might want to implement your own dietary classification logic
-    return filters.every(filter => !filter.active);
-  });
-
   return (
     <main className="max-w-4xl mx-auto p-4 mb-20">
       <div className="flex flex-col space-y-4">
@@ -77,18 +55,6 @@ export default function SearchPage() {
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full"
         />
-        <div className="flex flex-wrap gap-2">
-          {filters.map((filter) => (
-            <Button
-              key={filter.id}
-              variant={filter.active ? "default" : "outline"}
-              onClick={() => toggleFilter(filter.id)}
-              className="text-sm"
-            >
-              {filter.label}
-            </Button>
-          ))}
-        </div>
       </div>
 
       {loading && (
@@ -97,8 +63,8 @@ export default function SearchPage() {
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {filteredRecipes.map((recipe) => (
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mt-8">
+        {recipes.map((recipe) => (
           <Link href={`/recipe/${recipe.idMeal}`} key={recipe.idMeal}>
             <Card className="cursor-pointer hover:shadow-lg transition-shadow h-full flex flex-col">
               <CardHeader className="flex-none">
@@ -123,7 +89,7 @@ export default function SearchPage() {
         ))}
       </div>
 
-      {!loading && filteredRecipes.length === 0 && searchTerm && (
+      {!loading && recipes.length === 0 && searchTerm && (
         <div className="text-center py-4">
           <p>No recipes found. Try a different search term.</p>
         </div>
