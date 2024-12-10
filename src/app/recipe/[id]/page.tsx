@@ -9,6 +9,7 @@ import { validateAndSanitizeRecipe } from '@/lib/recipe-validator';
 import { getRecipeById } from '@/lib/mealdb';
 import type { Recipe } from '@/types/recipe';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Heart } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
@@ -17,6 +18,7 @@ import { EditRecipeDialog } from '@/components/EditRecipeDialog';
 import { RestoreRecipeButton } from '@/components/RestoreRecipeButton';
 import toast from 'react-hot-toast';
 import { toggleLike } from '@/utils/likeUtils';
+import { RecipeIcon } from '@/components/ui/recipe-icon';
 
 interface RecipeDetailsProps {
   params: Promise<{ id: string }>;
@@ -131,11 +133,25 @@ function RecipeContent({ id }: { id: string }) {
       <Card>
         <CardContent className="p-0">
           <div className="aspect-[4/3] relative overflow-hidden">
-            <img 
-              src={recipe.strMealThumb} 
-              alt={recipe.strMeal}
-              className="object-cover w-full h-full"
-            />
+            <div className="relative w-full h-full">
+              {recipe.strMealThumb && recipe.strMealThumb.startsWith('http') ? (
+                <img
+                  src={recipe.strMealThumb}
+                  alt={recipe.strMeal}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    const img = e.target as HTMLImageElement;
+                    img.src = '/recipe-placeholder.jpg';
+                  }}
+                />
+              ) : (
+                <img
+                  src="/recipe-placeholder.jpg"
+                  alt={recipe.strMeal}
+                  className="w-full h-full object-cover"
+                />
+              )}
+            </div>
           </div>
           
           <div className="p-6 space-y-6">

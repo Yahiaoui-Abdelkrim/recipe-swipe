@@ -35,6 +35,26 @@ export function validateAndSanitizeRecipe(
       }
     };
 
+    // Helper function to validate and sanitize image URL
+    const sanitizeImageUrl = (url: string): string => {
+      if (!url || typeof url !== 'string') {
+        return '/recipe-placeholder.jpg';
+      }
+
+      // Ensure URL starts with http/https
+      if (!url.startsWith('http')) {
+        return '/recipe-placeholder.jpg';
+      }
+
+      // Validate if URL ends with common image extensions
+      const validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+      const hasValidExtension = validExtensions.some(ext => 
+        url.toLowerCase().endsWith(ext)
+      );
+
+      return hasValidExtension ? url : '/recipe-placeholder.jpg';
+    };
+
     // Provide default values for missing fields
     const sanitizedRecipe = {
       idMeal: docId,
@@ -42,7 +62,7 @@ export function validateAndSanitizeRecipe(
       strMeal: data.strMeal?.trim() || 'Untitled Recipe',
       strCategory: data.strCategory?.trim() || 'Uncategorized',
       strInstructions: data.strInstructions?.trim() || 'No instructions available',
-      strMealThumb: data.strMealThumb || 'https://www.themealdb.com/images/media/meals/default.jpg',
+      strMealThumb: sanitizeImageUrl(data.strMealThumb),
       strArea: (data.strArea || 'Unknown').trim(),
       ingredients: Array.isArray(data.ingredients) ? data.ingredients.filter(Boolean).map((i: string) => i.trim()) : [],
       measures: Array.isArray(data.measures) ? data.measures.filter(Boolean).map((m: string) => m.trim()) : [],

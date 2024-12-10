@@ -9,8 +9,10 @@ import { validateAndSanitizeRecipe } from '@/lib/recipe-validator';
 import { cleanupInvalidRecipes } from '@/lib/db-cleanup';
 import type { Recipe } from '@/types/recipe';
 import Link from 'next/link';
+import Image from 'next/image';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/lib/auth';
+import { RecipeIcon } from '@/components/ui/recipe-icon';
 
 export default function LikedPage() {
   return (
@@ -193,12 +195,25 @@ function LikedRecipes() {
                   </CardHeader>
                   <CardContent className="flex-grow">
                     <div className="aspect-video relative overflow-hidden rounded-md">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={recipe.strMealThumb}
-                        alt={recipe.strMeal}
-                        className="object-cover w-full h-full"
-                      />
+                      <div className="relative w-full h-full">
+                        {recipe.strMealThumb && recipe.strMealThumb.startsWith('http') ? (
+                          <img
+                            src={recipe.strMealThumb}
+                            alt={recipe.strMeal}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              const img = e.target as HTMLImageElement;
+                              img.src = '/recipe-placeholder.jpg';
+                            }}
+                          />
+                        ) : (
+                          <img
+                            src="/recipe-placeholder.jpg"
+                            alt={recipe.strMeal}
+                            className="w-full h-full object-cover"
+                          />
+                        )}
+                      </div>
                     </div>
                     <p className="mt-2 text-sm text-muted-foreground">
                       {recipe.strCategory} • {recipe.strArea}

@@ -11,6 +11,8 @@ import { toggleLike } from '@/utils/likeUtils';
 import { useRouter } from 'next/navigation';
 import { ThumbsUp, ThumbsDown } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
+import { RecipeIcon } from '@/components/ui/recipe-icon';
 
 export function RecipeSwiper() {
   const [currentRecipe, setCurrentRecipe] = useState<Recipe | null>(null);
@@ -71,11 +73,17 @@ export function RecipeSwiper() {
             <Card className="w-full cursor-pointer hover:shadow-lg transition-shadow relative">
               <CardContent className="p-4">
                 <div className="aspect-video relative overflow-hidden rounded-lg mb-3">
-                  <img
-                    src={currentRecipe.strMealThumb}
-                    alt={currentRecipe.strMeal}
-                    className="object-cover w-full h-full"
-                  />
+                  <div className="relative w-full h-full">
+                    <img
+                      src={currentRecipe.strMealThumb || '/recipe-placeholder.jpg'}
+                      alt={currentRecipe.strMeal}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const img = e.target as HTMLImageElement;
+                        img.src = '/recipe-placeholder.jpg';
+                      }}
+                    />
+                  </div>
                   <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-4">
                     <Button
                       size="icon"
