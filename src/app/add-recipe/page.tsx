@@ -8,14 +8,32 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { validateAndSanitizeRecipe } from '@/lib/recipe-validator';
+import { generateRecipeWithAI } from '@/lib/gemini';
 import { nanoid } from 'nanoid';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Loader2, Sparkles } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+const CUISINE_TYPES = [
+  'American', 'British', 'Chinese', 'French', 'Indian', 'Italian', 'Japanese', 'Mexican', 'Thai', 'Mediterranean'
+];
+
+const DIETARY_PREFERENCES = [
+  'Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free', 'Keto', 'Low-Carb', 'Paleo'
+];
+
+// Add type for the select value
+type SelectValue = string;
 
 export default function AddRecipe() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [selectedDiets, setSelectedDiets] = useState<string[]>([]);
+  const [selectedCuisine, setSelectedCuisine] = useState<string>('');
   
   const [recipe, setRecipe] = useState({
     strMeal: '',
@@ -23,7 +41,6 @@ export default function AddRecipe() {
     strArea: 'Custom',
     strInstructions: '',
     strMealThumb: '',
-    strSocialMediaLink: '',
     ingredients: [''],
     measures: [''],
   });
@@ -68,6 +85,35 @@ export default function AddRecipe() {
     }));
   };
 
+  const handleGenerateRecipe = async () => {
+    if (!recipe.strMeal.trim()) {
+      setError('Please enter a recipe name first');
+      return;
+    }
+
+    setGenerating(true);
+    setError('');
+
+    try {
+      const generatedRecipe = await generateRecipeWithAI({
+        recipeName: recipe.strMeal,
+        dietaryPreferences: selectedDiets,
+        cuisineType: selectedCuisine,
+        shouldSave: false,
+      });
+
+      setRecipe(prev => ({
+        ...prev,
+        ...generatedRecipe,
+      }));
+    } catch (error) {
+      console.error('Error:', error);
+      setError('Failed to generate recipe. Please try again or fill in the details manually.');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -98,29 +144,93 @@ export default function AddRecipe() {
     }
   };
 
+  // Update the onValueChange handler with proper typing
+  const handleDietaryChange = (value: SelectValue) => {
+    setSelectedDiets(value ? [value] : []);
+  };
+
   return (
     <main className="max-w-2xl mx-auto p-4 mb-20">
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl">Add New Recipe</CardTitle>
+          <CardDescription>
+            You can use AI to automatically generate recipe details by entering a recipe name and optionally selecting dietary preferences and cuisine type.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <div className="bg-red-50 text-red-500 p-3 rounded-md mb-4">
-                {error}
-              </div>
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
             
             <div className="space-y-2">
               <Label htmlFor="strMeal">Recipe Name *</Label>
-              <Input
-                id="strMeal"
-                name="strMeal"
-                value={recipe.strMeal}
-                onChange={handleInputChange}
-                required
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="strMeal"
+                  name="strMeal"
+                  value={recipe.strMeal}
+                  onChange={handleInputChange}
+                  required
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  onClick={handleGenerateRecipe}
+                  disabled={generating || !recipe.strMeal.trim()}
+                  className="flex items-center gap-2"
+                >
+                  {generating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-4 w-4" />
+                  )}
+                  Generate with AI
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Cuisine Type (Optional)</Label>
+                <Select
+                  value={selectedCuisine}
+                  onValueChange={setSelectedCuisine}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select cuisine" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CUISINE_TYPES.map(cuisine => (
+                      <SelectItem key={cuisine} value={cuisine}>
+                        {cuisine}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Dietary Preferences (Optional)</Label>
+                <Select
+                  value={selectedDiets[0] || ''}
+                  onValueChange={handleDietaryChange}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select diet" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DIETARY_PREFERENCES.map(diet => (
+                      <SelectItem key={diet} value={diet}>
+                        {diet}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -142,17 +252,6 @@ export default function AddRecipe() {
                 value={recipe.strMealThumb}
                 onChange={handleInputChange}
                 placeholder="https://example.com/image.jpg"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="strSocialMediaLink">Social Media Link (Optional)</Label>
-              <Input
-                id="strSocialMediaLink"
-                name="strSocialMediaLink"
-                value={recipe.strSocialMediaLink}
-                onChange={handleInputChange}
-                placeholder="YouTube or Instagram link"
               />
             </div>
 
@@ -216,11 +315,15 @@ export default function AddRecipe() {
                 type="button"
                 variant="outline"
                 onClick={() => router.back()}
-                disabled={loading}
+                disabled={loading || generating}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={loading}>
+              <Button 
+                type="submit" 
+                disabled={loading || generating}
+                className="min-w-[120px]"
+              >
                 {loading ? 'Saving...' : 'Save Recipe'}
               </Button>
             </div>
