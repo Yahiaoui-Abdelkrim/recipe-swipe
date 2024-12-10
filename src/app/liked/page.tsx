@@ -60,28 +60,23 @@ function LikedRecipes() {
       const querySnapshot = await getDocs(q);
       console.log('📊 Found liked recipes:', querySnapshot.size);
       const recipesMap = new Map();
-      const invalidDocs: string[] = [];
 
       querySnapshot.docs.forEach(doc => {
         const validationResult = validateAndSanitizeRecipe(doc.id, doc.data());
         
-        if (!validationResult.isValid) {
-          invalidDocs.push(doc.id);
-          console.error(
-            `Recipe document ${doc.id} is invalid:`,
-            validationResult.missingFields.join(', ')
-          );
-          return;
-        }
-
-        if (validationResult.sanitizedRecipe && !recipesMap.has(validationResult.sanitizedRecipe.id)) {
+        // Always use the sanitized recipe if available, even if it's invalid
+        if (validationResult.sanitizedRecipe) {
           recipesMap.set(validationResult.sanitizedRecipe.id, validationResult.sanitizedRecipe);
         }
-      });
 
-      if (invalidDocs.length > 0) {
-        console.warn(`Found ${invalidDocs.length} invalid recipe documents`);
-      }
+        // Log validation issues for debugging
+        if (!validationResult.isValid) {
+          console.warn(
+            `Recipe document ${doc.id} has validation issues:`,
+            validationResult.missingFields.join(', ')
+          );
+        }
+      });
 
       // Sort recipes by likedAt date after fetching
       const recipesList = Array.from(recipesMap.values());

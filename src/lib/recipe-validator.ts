@@ -13,10 +13,11 @@ export function validateAndSanitizeRecipe(
   const requiredFields = ['strMeal', 'strCategory', 'strInstructions', 'strMealThumb'];
   const missingFields = requiredFields.filter(field => !data[field]);
 
-  if (missingFields.length > 0) {
+  // If data is completely invalid, return early
+  if (!data || typeof data !== 'object') {
     return {
       isValid: false,
-      missingFields,
+      missingFields: ['Invalid data format'],
     };
   }
 
@@ -34,26 +35,27 @@ export function validateAndSanitizeRecipe(
       }
     };
 
+    // Provide default values for missing fields
     const sanitizedRecipe = {
       idMeal: docId,
       id: docId,
-      strMeal: data.strMeal?.trim() || '',
-      strCategory: data.strCategory?.trim() || '',
-      strInstructions: data.strInstructions?.trim() || '',
-      strMealThumb: data.strMealThumb || '',
-      strArea: (data.strArea || '').trim(),
+      strMeal: data.strMeal?.trim() || 'Untitled Recipe',
+      strCategory: data.strCategory?.trim() || 'Uncategorized',
+      strInstructions: data.strInstructions?.trim() || 'No instructions available',
+      strMealThumb: data.strMealThumb || 'https://www.themealdb.com/images/media/meals/default.jpg',
+      strArea: (data.strArea || 'Unknown').trim(),
       ingredients: Array.isArray(data.ingredients) ? data.ingredients.filter(Boolean).map((i: string) => i.trim()) : [],
       measures: Array.isArray(data.measures) ? data.measures.filter(Boolean).map((m: string) => m.trim()) : [],
       lastUsedDate: new Date(),
       likedAt: parseDateString(data.likedAt)
     } as Recipe & { id: string };
 
-    // Additional validation after sanitization
-    if (!sanitizedRecipe.strMeal || !sanitizedRecipe.strCategory || 
-        !sanitizedRecipe.strInstructions || !sanitizedRecipe.strMealThumb) {
+    // If any of the required fields are using default values, mark as invalid
+    if (missingFields.length > 0) {
       return {
         isValid: false,
-        missingFields: requiredFields.filter(field => !sanitizedRecipe[field as keyof typeof sanitizedRecipe]),
+        missingFields,
+        sanitizedRecipe // Still return the sanitized recipe with default values
       };
     }
 

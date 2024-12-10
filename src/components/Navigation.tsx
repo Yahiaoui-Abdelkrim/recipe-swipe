@@ -23,11 +23,6 @@ export function Navigation() {
                   Discover
                 </Button>
               </Link>
-              <Link href="/search">
-                <Button variant={pathname === '/search' ? 'default' : 'ghost'}>
-                  Search
-                </Button>
-              </Link>
               <Link href="/liked">
                 <Button variant={pathname === '/liked' ? 'default' : 'ghost'}>
                   Liked
