@@ -11,8 +11,6 @@ import { toggleLike } from '@/utils/likeUtils';
 import { useRouter } from 'next/navigation';
 import { ThumbsUp, ThumbsDown } from 'lucide-react';
 import Link from 'next/link';
-import Image from 'next/image';
-import { RecipeIcon } from '@/components/ui/recipe-icon';
 import { useToast } from '@/components/ui/use-toast';
 
 export function RecipeSwiper() {

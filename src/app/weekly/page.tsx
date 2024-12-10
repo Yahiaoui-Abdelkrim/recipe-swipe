@@ -11,7 +11,6 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
 import { useToast as useShadcnToast } from '@/components/ui/use-toast';
 import toast from 'react-hot-toast';
-import Image from 'next/image';
 
 export default function WeeklyPlan() {
   const { user } = useAuth();

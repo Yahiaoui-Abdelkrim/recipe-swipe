@@ -11,11 +11,9 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { validateAndSanitizeRecipe } from '@/lib/recipe-validator';
 import { generateRecipeWithAI, correctRecipeName } from '@/lib/gemini';
-import { nanoid } from 'nanoid';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Sparkles } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getAuth } from 'firebase/auth';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/components/ui/use-toast';
 

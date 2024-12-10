@@ -1,5 +1,16 @@
 import { Recipe } from '../types/recipe';
 
+interface MealDBResponse {
+  idMeal: string;
+  strMeal: string;
+  strCategory: string;
+  strArea: string;
+  strInstructions: string;
+  strMealThumb: string;
+  [key: `strIngredient${number}`]: string | null;
+  [key: `strMeasure${number}`]: string | null;
+}
+
 const MEALDB_API_URL = 'https://www.themealdb.com/api/json/v1/1';
 
 export async function getRandomRecipe(): Promise<Recipe> {
@@ -25,7 +36,7 @@ export async function getRecipeById(id: string): Promise<Recipe | null> {
   }
 }
 
-function transformMealDBResponse(meal: any): Recipe {
+function transformMealDBResponse(meal: MealDBResponse): Recipe {
   const ingredients: string[] = [];
   const measures: string[] = [];
 
