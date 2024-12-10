@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import type { Recipe } from '@/types/recipe';
 import { validateAndSanitizeRecipe } from '@/lib/recipe-validator';
+import { User } from 'lucide-react';
+import Image from 'next/image';
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -46,8 +48,9 @@ export default function ProfilePage() {
             categories[recipe.strCategory] = (categories[recipe.strCategory] || 0) + 1;
             
             // Track last added date
-            if (!lastAddedDate || recipe.likedAt > lastAddedDate) {
-              lastAddedDate = recipe.likedAt;
+            const recipeDate = recipe.likedAt || '';
+            if (!lastAddedDate || (recipeDate && recipeDate > lastAddedDate)) {
+              lastAddedDate = recipeDate;
             }
           }
         });
@@ -105,13 +108,20 @@ export default function ProfilePage() {
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
-              {user.photoURL && (
-                <img
-                  src={user.photoURL}
-                  alt={user.displayName || 'Profile'}
-                  className="w-16 h-16 rounded-full"
-                />
-              )}
+              <div className="relative w-24 h-24 rounded-full overflow-hidden bg-muted flex items-center justify-center">
+                {user.photoURL ? (
+                  <Image
+                    src={user.photoURL}
+                    alt={user.displayName || 'Profile'}
+                    width={96}
+                    height={96}
+                    className="object-cover"
+                    priority
+                  />
+                ) : (
+                  <User className="h-12 w-12 text-muted-foreground" />
+                )}
+              </div>
               <div>
                 <h1 className="text-2xl font-bold">{user.displayName || 'User'}</h1>
                 <p className="text-muted-foreground">{user.email}</p>
