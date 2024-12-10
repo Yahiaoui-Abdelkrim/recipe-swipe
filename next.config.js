@@ -5,7 +5,8 @@ const nextConfig = {
       'www.themealdb.com',
       'images.unsplash.com',
       'placehold.co',
-      'lh3.googleusercontent.com'
+      'lh3.googleusercontent.com',
+      'downshiftology.com'
     ],
   },
 }

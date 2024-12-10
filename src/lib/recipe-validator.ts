@@ -1,5 +1,13 @@
 import type { Recipe } from '@/types/recipe';
 
+const ALLOWED_IMAGE_DOMAINS = [
+  'www.themealdb.com',
+  'images.unsplash.com',
+  'placehold.co',
+  'lh3.googleusercontent.com',
+  'downshiftology.com'
+];
+
 export interface ValidationResult {
   isValid: boolean;
   missingFields: string[];
@@ -46,13 +54,28 @@ export function validateAndSanitizeRecipe(
         return '/recipe-placeholder.jpg';
       }
 
-      // Validate if URL ends with common image extensions
-      const validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
-      const hasValidExtension = validExtensions.some(ext => 
-        url.toLowerCase().endsWith(ext)
-      );
+      try {
+        const urlObj = new URL(url);
+        // Check if the domain is allowed
+        const isAllowedDomain = ALLOWED_IMAGE_DOMAINS.some(domain => 
+          urlObj.hostname === domain || urlObj.hostname.endsWith(`.${domain}`)
+        );
 
-      return hasValidExtension ? url : '/recipe-placeholder.jpg';
+        if (!isAllowedDomain) {
+          return '/recipe-placeholder.jpg';
+        }
+
+        // Validate if URL ends with common image extensions
+        const validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+        const hasValidExtension = validExtensions.some(ext => 
+          url.toLowerCase().endsWith(ext)
+        );
+
+        return hasValidExtension ? url : '/recipe-placeholder.jpg';
+      } catch {
+        // If URL parsing fails, return default image
+        return '/recipe-placeholder.jpg';
+      }
     };
 
     // Provide default values for missing fields

@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
 import { useToast as useShadcnToast } from '@/components/ui/use-toast';
 import toast from 'react-hot-toast';
+import Image from 'next/image';
 
 export default function WeeklyPlan() {
   const { user } = useAuth();
@@ -343,12 +344,24 @@ export default function WeeklyPlan() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="flex gap-4">
-                  <div className="relative w-32 h-32 flex-shrink-0">
-                    <img 
-                      src={recipe.strMealThumb} 
-                      alt={recipe.strMeal}
-                      className="w-full h-full object-cover rounded-md"
-                    />
+                  <div className="relative w-32 h-32 flex-shrink-0 bg-muted rounded-md overflow-hidden">
+                    {recipe.strMealThumb && recipe.strMealThumb.startsWith('http') ? (
+                      <img
+                        src={recipe.strMealThumb}
+                        alt={recipe.strMeal}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const img = e.target as HTMLImageElement;
+                          img.src = '/recipe-placeholder.jpg';
+                        }}
+                      />
+                    ) : (
+                      <img
+                        src="/recipe-placeholder.jpg"
+                        alt={recipe.strMeal}
+                        className="w-full h-full object-cover"
+                      />
+                    )}
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">
