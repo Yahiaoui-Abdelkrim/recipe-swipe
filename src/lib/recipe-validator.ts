@@ -23,6 +23,7 @@ interface RecipeData {
   ingredients?: string[];
   measures?: string[];
   likedAt?: string;
+  isCustomized?: boolean;
   [key: string]: unknown;
 }
 
@@ -30,7 +31,7 @@ export function validateAndSanitizeRecipe(
   docId: string,
   data: RecipeData
 ): ValidationResult {
-  const requiredFields = ['strMeal', 'strCategory', 'strInstructions', 'strMealThumb'];
+  const requiredFields = ['strMeal', 'strCategory', 'strInstructions'];
   const missingFields = requiredFields.filter(field => !data[field]);
 
   // If data is completely invalid, return early
@@ -57,36 +58,52 @@ export function validateAndSanitizeRecipe(
 
     // Helper function to validate and sanitize image URL
     const sanitizeImageUrl = (url: string | undefined): string => {
-      if (!url || typeof url !== 'string') {
-        return '/recipe-placeholder.jpg';
+      const PLACEHOLDER_IMAGE = '/recipe-placeholder.jpg';
+      
+      // If URL is undefined or empty string, return placeholder
+      if (!url || url.trim() === '') {
+        return PLACEHOLDER_IMAGE;
       }
 
-      // Ensure URL starts with http/https
-      if (!url.startsWith('http')) {
-        return '/recipe-placeholder.jpg';
+      // If URL doesn't start with http/https, return placeholder
+      if (!url.toLowerCase().startsWith('http')) {
+        return PLACEHOLDER_IMAGE;
       }
 
       try {
         const urlObj = new URL(url);
+        
         // Check if the domain is allowed
         const isAllowedDomain = ALLOWED_IMAGE_DOMAINS.some(domain => 
           urlObj.hostname === domain || urlObj.hostname.endsWith(`.${domain}`)
         );
 
         if (!isAllowedDomain) {
-          return '/recipe-placeholder.jpg';
+          return PLACEHOLDER_IMAGE;
         }
 
         // Validate if URL ends with common image extensions
         const validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
         const hasValidExtension = validExtensions.some(ext => 
-          url.toLowerCase().endsWith(ext)
+          urlObj.pathname.toLowerCase().endsWith(ext)
         );
 
-        return hasValidExtension ? url : '/recipe-placeholder.jpg';
+        // Additional validation for query parameters
+        if (urlObj.search && !hasValidExtension) {
+          // Check if any query parameter ends with valid extension
+          const queryParams = Array.from(urlObj.searchParams.values());
+          const hasValidQueryExtension = queryParams.some(param => 
+            validExtensions.some(ext => param.toLowerCase().endsWith(ext))
+          );
+          if (hasValidQueryExtension) {
+            return url;
+          }
+        }
+
+        return hasValidExtension ? url : PLACEHOLDER_IMAGE;
       } catch {
-        // If URL parsing fails, return default image
-        return '/recipe-placeholder.jpg';
+        // If URL parsing fails, return placeholder
+        return PLACEHOLDER_IMAGE;
       }
     };
 
@@ -102,7 +119,8 @@ export function validateAndSanitizeRecipe(
       ingredients: Array.isArray(data.ingredients) ? data.ingredients.filter(Boolean).map((i: string) => i.trim()) : [],
       measures: Array.isArray(data.measures) ? data.measures.filter(Boolean).map((m: string) => m.trim()) : [],
       lastUsedDate: new Date(),
-      likedAt: parseDateString(data.likedAt)
+      likedAt: parseDateString(data.likedAt),
+      isCustomized: data.isCustomized || false,
     } as Recipe & { id: string };
 
     // If any of the required fields are using default values, mark as invalid

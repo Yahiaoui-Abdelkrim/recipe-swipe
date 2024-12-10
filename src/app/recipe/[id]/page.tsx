@@ -27,9 +27,15 @@ function RecipeContent({ id }: { id: string }) {
   const [recipe, setRecipe] = useState<(Recipe & { id: string; isCustomized?: boolean }) | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [imageError, setImageError] = useState(false);
   const router = useRouter();
   const { previousPath } = useNavigation();
   const { toast } = useToast();
+
+  // Reset image error when recipe changes
+  useEffect(() => {
+    setImageError(false);
+  }, [recipe?.strMealThumb]);
 
   const handleBack = () => {
     router.push(previousPath);
@@ -52,10 +58,12 @@ function RecipeContent({ id }: { id: string }) {
         if (docId && docData) {
           const validationResult = validateAndSanitizeRecipe(docId, docData);
           if (validationResult.isValid && validationResult.sanitizedRecipe) {
-            console.log('Found customized recipe');
+            console.log('Found recipe in user_recipes');
+            // Only mark as customized if it was explicitly set or if it has an originalRecipeId
+            const isCustomized = docData.isCustomized || docData.originalRecipeId;
             setRecipe({
               ...validationResult.sanitizedRecipe,
-              isCustomized: true
+              isCustomized: !!isCustomized
             });
             return;
           }
@@ -147,27 +155,26 @@ function RecipeContent({ id }: { id: string }) {
         <CardContent className="p-0">
           <div className="aspect-[4/3] relative overflow-hidden">
             <div className="relative w-full h-full">
-              {recipe.strMealThumb && recipe.strMealThumb.startsWith('http') ? (
-                <Image
-                  src={recipe.strMealThumb}
-                  alt={recipe.strMeal}
-                  width={800}
-                  height={600}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    const img = e.target as HTMLImageElement;
-                    img.src = '/recipe-placeholder.jpg';
-                  }}
-                />
-              ) : (
-                <Image
-                  src="/recipe-placeholder.jpg"
-                  alt={recipe.strMeal}
-                  width={800}
-                  height={600}
-                  className="w-full h-full object-cover"
-                />
-              )}
+              <Image
+                src={!imageError && recipe.strMealThumb ? recipe.strMealThumb : '/recipe-placeholder.jpg'}
+                alt={recipe.strMeal}
+                width={800}
+                height={600}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  setImageError(true);
+                  const img = e.target as HTMLImageElement;
+                  img.src = '/recipe-placeholder.jpg';
+                  
+                  // Show toast notification
+                  toast({
+                    title: "Image Error",
+                    description: "Failed to load image. Using default placeholder.",
+                    variant: "destructive",
+                  });
+                }}
+                priority={true}
+              />
             </div>
           </div>
           

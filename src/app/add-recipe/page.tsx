@@ -43,17 +43,24 @@ export default function AddRecipe() {
     strCategory: '',
     strArea: 'Custom',
     strInstructions: '',
-    strMealThumb: '/recipe-placeholder.jpg',
+    strMealThumb: '',
     ingredients: [''],
     measures: [''],
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setRecipe(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    if (name === 'strMealThumb' && !value.trim()) {
+      setRecipe(prev => ({
+        ...prev,
+        [name]: ''
+      }));
+    } else {
+      setRecipe(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   const handleIngredientChange = (index: number, value: string, type: 'ingredient' | 'measure') => {
@@ -118,6 +125,7 @@ export default function AddRecipe() {
       setRecipe(prev => ({
         ...prev,
         ...generatedRecipe,
+        strMealThumb: '',
       }));
     } catch (error) {
       console.error('Error:', error);
@@ -140,6 +148,7 @@ export default function AddRecipe() {
       const validationResult = validateAndSanitizeRecipe(recipeId, {
         ...recipe,
         userId: user.uid,
+        isCustomized: false,
       });
 
       if (!validationResult.isValid) {
@@ -283,8 +292,12 @@ export default function AddRecipe() {
                 name="strMealThumb"
                 value={recipe.strMealThumb}
                 onChange={handleInputChange}
-                placeholder="https://example.com/image.jpg"
+                placeholder="Enter image URL (optional)"
+                className={recipe.strMealThumb ? 'border-green-500' : ''}
               />
+              <p className="text-sm text-muted-foreground">
+                Leave empty to use default image. URL must end with .jpg, .jpeg, .png, or .gif
+              </p>
             </div>
 
             <div className="space-y-2">
