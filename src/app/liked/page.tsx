@@ -1,18 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { collection, getDocs, deleteDoc, doc, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { validateAndSanitizeRecipe } from '@/lib/recipe-validator';
-import { cleanupInvalidRecipes } from '@/lib/db-cleanup';
 import type { Recipe } from '@/types/recipe';
 import Link from 'next/link';
-import Image from 'next/image';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { useAuth } from '@/lib/auth';
-import { RecipeIcon } from '@/components/ui/recipe-icon';
+import Image from 'next/image';
 
 export default function LikedPage() {
   return (
@@ -48,38 +46,26 @@ function LikedRecipes() {
     }
   }, [totalPages, currentPage]);
 
-  const fetchLikedRecipes = async () => {
+  const fetchLikedRecipes = useCallback(async () => {
     if (!user) return;
     
     try {
-      console.log('🔍 Fetching liked recipes for user:', user.uid);
       const q = query(
         collection(db, 'liked_recipes'),
         where('userId', '==', user.uid)
       );
       
       const querySnapshot = await getDocs(q);
-      console.log('📊 Found liked recipes:', querySnapshot.size);
       const recipesMap = new Map();
 
       querySnapshot.docs.forEach(doc => {
         const validationResult = validateAndSanitizeRecipe(doc.id, doc.data());
         
-        // Always use the sanitized recipe if available, even if it's invalid
-        if (validationResult.sanitizedRecipe) {
+        if (validationResult.isValid && validationResult.sanitizedRecipe) {
           recipesMap.set(validationResult.sanitizedRecipe.id, validationResult.sanitizedRecipe);
-        }
-
-        // Log validation issues for debugging
-        if (!validationResult.isValid) {
-          console.warn(
-            `Recipe document ${doc.id} has validation issues:`,
-            validationResult.missingFields.join(', ')
-          );
         }
       });
 
-      // Sort recipes by likedAt date after fetching
       const recipesList = Array.from(recipesMap.values());
       recipesList.sort((a, b) => {
         return new Date(b.likedAt).getTime() - new Date(a.likedAt).getTime();
@@ -87,15 +73,15 @@ function LikedRecipes() {
 
       setRecipes(recipesList);
     } catch (error) {
-      console.error('❌ Error fetching liked recipes:', error);
+      console.error('Error fetching liked recipes:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchLikedRecipes();
-  }, [user, fetchLikedRecipes]);
+  }, [fetchLikedRecipes]);
 
   const handleDelete = async (recipeId: string, e: React.MouseEvent) => {
     e.preventDefault(); // Prevent navigation
@@ -173,20 +159,24 @@ function LikedRecipes() {
                     <div className="aspect-video relative overflow-hidden rounded-md">
                       <div className="relative w-full h-full">
                         {recipe.strMealThumb && recipe.strMealThumb.startsWith('http') ? (
-                          <img
+                          <Image
                             src={recipe.strMealThumb}
                             alt={recipe.strMeal}
-                            className="w-full h-full object-cover"
+                            width={400}
+                            height={300}
+                            className="object-cover w-full h-full"
                             onError={(e) => {
                               const img = e.target as HTMLImageElement;
                               img.src = '/recipe-placeholder.jpg';
                             }}
                           />
                         ) : (
-                          <img
+                          <Image
                             src="/recipe-placeholder.jpg"
                             alt={recipe.strMeal}
-                            className="w-full h-full object-cover"
+                            width={400}
+                            height={300}
+                            className="object-cover w-full h-full"
                           />
                         )}
                       </div>

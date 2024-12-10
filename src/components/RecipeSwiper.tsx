@@ -13,20 +13,29 @@ import { ThumbsUp, ThumbsDown } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { RecipeIcon } from '@/components/ui/recipe-icon';
+import { useToast } from '@/components/ui/use-toast';
 
 export function RecipeSwiper() {
   const [currentRecipe, setCurrentRecipe] = useState<Recipe | null>(null);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const router = useRouter();
+  const { toast } = useToast();
 
   const fetchNewRecipe = async () => {
     setLoading(true);
     try {
+      console.log('Fetching new recipe...');
       const recipe = await getRandomRecipe();
       setCurrentRecipe(recipe);
+      console.log('New recipe fetched:', recipe.id);
     } catch (error) {
       console.error('Error fetching recipe:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch new recipe",
+        variant: "destructive",
+      });
     }
     setLoading(false);
   };
@@ -43,16 +52,31 @@ export function RecipeSwiper() {
     }
 
     try {
+      console.log('Liking recipe:', currentRecipe?.id);
       await toggleLike(currentRecipe!);
-      fetchNewRecipe();
+      console.log('Recipe liked successfully');
+      
+      toast({
+        title: "Recipe Added",
+        description: "Recipe added to your liked recipes",
+      });
+      console.log('Toast notification sent');
+      
+      await fetchNewRecipe();
     } catch (error) {
       console.error('Error liking recipe:', error);
+      toast({
+        title: "Error",
+        description: "Failed to like recipe",
+        variant: "destructive",
+      });
     }
   };
 
-  const handleSkip = (e: React.MouseEvent) => {
+  const handleSkip = async (e: React.MouseEvent) => {
     e.preventDefault(); // Prevent navigation
-    fetchNewRecipe();
+    console.log('Skipping recipe:', currentRecipe?.id);
+    await fetchNewRecipe();
   };
 
   if (loading || !currentRecipe) {

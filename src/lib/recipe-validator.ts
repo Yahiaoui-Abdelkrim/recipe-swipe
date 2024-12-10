@@ -14,9 +14,21 @@ export interface ValidationResult {
   sanitizedRecipe?: Recipe & { id: string };
 }
 
+interface RecipeData {
+  strMeal?: string;
+  strCategory?: string;
+  strInstructions?: string;
+  strMealThumb?: string;
+  strArea?: string;
+  ingredients?: string[];
+  measures?: string[];
+  likedAt?: string;
+  [key: string]: unknown;
+}
+
 export function validateAndSanitizeRecipe(
   docId: string,
-  data: any
+  data: RecipeData
 ): ValidationResult {
   const requiredFields = ['strMeal', 'strCategory', 'strInstructions', 'strMealThumb'];
   const missingFields = requiredFields.filter(field => !data[field]);
@@ -31,7 +43,7 @@ export function validateAndSanitizeRecipe(
 
   try {
     // Helper function to safely parse dates
-    const parseDateString = (dateStr: any): string => {
+    const parseDateString = (dateStr: string | undefined): string => {
       if (!dateStr) return new Date().toISOString();
       try {
         const date = new Date(dateStr);
@@ -44,7 +56,7 @@ export function validateAndSanitizeRecipe(
     };
 
     // Helper function to validate and sanitize image URL
-    const sanitizeImageUrl = (url: string): string => {
+    const sanitizeImageUrl = (url: string | undefined): string => {
       if (!url || typeof url !== 'string') {
         return '/recipe-placeholder.jpg';
       }
@@ -107,7 +119,7 @@ export function validateAndSanitizeRecipe(
       missingFields: [],
       sanitizedRecipe
     };
-  } catch (error) {
+  } catch {
     return {
       isValid: false,
       missingFields: ['Data parsing error'],

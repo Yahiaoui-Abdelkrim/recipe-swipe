@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,9 +14,10 @@ import { useAuth } from '@/lib/auth';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { EditRecipeDialog } from '@/components/EditRecipeDialog';
 import { RestoreRecipeButton } from '@/components/RestoreRecipeButton';
-import toast from 'react-hot-toast';
 import { toggleLike } from '@/utils/likeUtils';
 import { use } from 'react';
+import Image from 'next/image';
+import { useToast } from '@/components/ui/use-toast';
 
 interface RecipeDetailsProps {
   params: Promise<{ id: string }>;
@@ -28,15 +29,17 @@ function RecipeContent({ id }: { id: string }) {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const { previousPath } = useNavigation();
+  const { toast } = useToast();
 
   const handleBack = () => {
     router.push(previousPath);
   };
 
-  const fetchRecipe = async () => {
+  const fetchRecipe = useCallback(async () => {
     if (!id) return;
     
     try {
+      console.log('Fetching recipe details:', id);
       setLoading(true);
       // First check for a customized version in user_recipes
       const customizedRef = doc(db, 'user_recipes', id);
@@ -49,6 +52,7 @@ function RecipeContent({ id }: { id: string }) {
         if (docId && docData) {
           const validationResult = validateAndSanitizeRecipe(docId, docData);
           if (validationResult.isValid && validationResult.sanitizedRecipe) {
+            console.log('Found customized recipe');
             setRecipe({
               ...validationResult.sanitizedRecipe,
               isCustomized: true
@@ -69,6 +73,7 @@ function RecipeContent({ id }: { id: string }) {
         if (docId && docData) {
           const validationResult = validateAndSanitizeRecipe(docId, docData);
           if (validationResult.isValid && validationResult.sanitizedRecipe) {
+            console.log('Found liked recipe');
             setRecipe({
               ...validationResult.sanitizedRecipe,
               isCustomized: false
@@ -79,8 +84,10 @@ function RecipeContent({ id }: { id: string }) {
       }
 
       // If not found in either collection, try MealDB
+      console.log('Fetching from MealDB');
       const mealDbRecipe = await getRecipeById(id);
       if (mealDbRecipe) {
+        console.log('Found recipe in MealDB');
         setRecipe({
           ...mealDbRecipe,
           isCustomized: false
@@ -94,20 +101,26 @@ function RecipeContent({ id }: { id: string }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     fetchRecipe();
-  }, [id]);
+  }, [fetchRecipe]);
 
   const handleRecipeUpdate = async (updatedRecipe: Recipe & { id: string }) => {
     setRecipe(updatedRecipe);
-    toast.success('Recipe updated successfully');
+    toast({
+      title: "Success",
+      description: "Recipe updated successfully",
+    });
   };
 
   const handleRecipeRestore = async () => {
     await fetchRecipe();
-    toast.success('Recipe restored to original version');
+    toast({
+      title: "Success",
+      description: "Recipe restored to original version",
+    });
   };
 
   if (loading) return <div>Loading...</div>;
@@ -135,9 +148,11 @@ function RecipeContent({ id }: { id: string }) {
           <div className="aspect-[4/3] relative overflow-hidden">
             <div className="relative w-full h-full">
               {recipe.strMealThumb && recipe.strMealThumb.startsWith('http') ? (
-                <img
+                <Image
                   src={recipe.strMealThumb}
                   alt={recipe.strMeal}
+                  width={800}
+                  height={600}
                   className="w-full h-full object-cover"
                   onError={(e) => {
                     const img = e.target as HTMLImageElement;
@@ -145,9 +160,11 @@ function RecipeContent({ id }: { id: string }) {
                   }}
                 />
               ) : (
-                <img
+                <Image
                   src="/recipe-placeholder.jpg"
                   alt={recipe.strMeal}
+                  width={800}
+                  height={600}
                   className="w-full h-full object-cover"
                 />
               )}
@@ -207,21 +224,26 @@ function LikeButton({ recipe }: { recipe: Recipe }) {
   const [isLiked, setIsLiked] = useState(false);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
     let mounted = true;
     
     if (!user || !recipe?.id || !db) {
+      console.log('No user or recipe ID, or DB not initialized');
       setLoading(false);
       return;
     }
 
     const checkIfLiked = async () => {
       try {
+        console.log('Checking if recipe is liked:', recipe.id);
         const docRef = doc(db, 'liked_recipes', recipe.id);
         const docSnap = await getDoc(docRef);
         if (mounted) {
-          setIsLiked(docSnap.exists());
+          const liked = docSnap.exists();
+          console.log('Recipe liked status:', liked);
+          setIsLiked(liked);
           setLoading(false);
         }
       } catch (error) {
@@ -244,10 +266,27 @@ function LikeButton({ recipe }: { recipe: Recipe }) {
 
     setLoading(true);
     try {
+      console.log('Toggling like for recipe:', recipe.id);
       await toggleLike(recipe);
-      setIsLiked(!isLiked);
+      const newLikeState = !isLiked;
+      setIsLiked(newLikeState);
+      console.log('Like state updated:', newLikeState);
+      
+      toast({
+        title: newLikeState ? "Recipe Added" : "Recipe Removed",
+        description: newLikeState 
+          ? "Recipe added to your liked recipes" 
+          : "Recipe removed from your liked recipes",
+        variant: newLikeState ? "default" : "destructive",
+      });
+      console.log('Toast notification sent');
     } catch (error) {
       console.error('Error in handleLike:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update recipe like status",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -261,8 +300,7 @@ function LikeButton({ recipe }: { recipe: Recipe }) {
       onClick={handleLike}
       disabled={loading}
     >
-      <Heart className={isLiked ? "fill-current" : ""} />
-      {!user && <span className="sr-only">Sign in to like this recipe</span>}
+      <Heart className={isLiked ? "fill-current text-foreground" : ""} />
     </Button>
   );
 }

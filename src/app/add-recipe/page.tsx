@@ -16,6 +16,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Sparkles } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getAuth } from 'firebase/auth';
+import { useAuth } from '@/lib/auth';
+import { useToast } from '@/components/ui/use-toast';
 
 const CUISINE_TYPES = [
   'American', 'British', 'Chinese', 'French', 'Indian', 'Italian', 'Japanese', 'Mexican', 'Thai', 'Mediterranean'
@@ -30,6 +32,8 @@ type SelectValue = string;
 
 export default function AddRecipe() {
   const router = useRouter();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [generating, setGenerating] = useState(false);
@@ -127,49 +131,46 @@ export default function AddRecipe() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
+    if (!user) {
+      router.push('/auth/sign-in');
+      return;
+    }
 
+    setLoading(true);
     try {
-      const recipeId = nanoid();
-      const validationResult = validateAndSanitizeRecipe(recipeId, recipe);
+      const recipeId = crypto.randomUUID();
+      const validationResult = validateAndSanitizeRecipe(recipeId, {
+        ...recipe,
+        userId: user.uid,
+      });
 
       if (!validationResult.isValid) {
-        setError(`Missing required fields: ${validationResult.missingFields.join(', ')}`);
-        setLoading(false);
+        toast({
+          title: "Validation Error",
+          description: `Missing required fields: ${validationResult.missingFields.join(', ')}`,
+          variant: "destructive",
+        });
         return;
       }
 
-      // Get the current user
-      const auth = getAuth();
-      const userId = auth.currentUser?.uid;
-      
-      if (!userId) {
-        setError('You must be logged in to save recipes');
-        return;
+      if (validationResult.sanitizedRecipe) {
+        const docRef = doc(db, 'user_recipes', recipeId);
+        await setDoc(docRef, validationResult.sanitizedRecipe);
+        
+        toast({
+          title: "Success",
+          description: "Recipe added successfully",
+        });
+        
+        router.push(`/recipe/${recipeId}`);
       }
-
-      // Ensure the image URL is valid
-      let imageUrl = recipe.strMealThumb;
-      if (!imageUrl || !imageUrl.startsWith('http')) {
-        imageUrl = '/recipe-placeholder.jpg';
-      }
-
-      // Prepare the recipe data
-      const recipeData = {
-        ...recipe,
-        id: recipeId,
-        userId,
-        strMealThumb: imageUrl,
-        likedAt: new Date().toISOString(),
-      };
-
-      // Save to Firestore
-      await setDoc(doc(db, 'liked_recipes', recipeId), recipeData);
-      router.push('/liked');
-    } catch (err) {
-      setError('Failed to save recipe. Please try again.');
-      console.error('Error saving recipe:', err);
+    } catch (error) {
+      console.error('Error adding recipe:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add recipe. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
