@@ -95,7 +95,7 @@ function LikedRecipes() {
 
   useEffect(() => {
     fetchLikedRecipes();
-  }, [user]);
+  }, [user, fetchLikedRecipes]);
 
   const handleDelete = async (recipeId: string, e: React.MouseEvent) => {
     e.preventDefault(); // Prevent navigation

@@ -1,15 +1,13 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
-import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
+import { useState, useEffect } from 'react';
+import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { validateAndSanitizeRecipe } from '@/lib/recipe-validator';
 import { getRecipeById } from '@/lib/mealdb';
 import type { Recipe } from '@/types/recipe';
-import Link from 'next/link';
-import Image from 'next/image';
 import { Heart } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
@@ -18,7 +16,7 @@ import { EditRecipeDialog } from '@/components/EditRecipeDialog';
 import { RestoreRecipeButton } from '@/components/RestoreRecipeButton';
 import toast from 'react-hot-toast';
 import { toggleLike } from '@/utils/likeUtils';
-import { RecipeIcon } from '@/components/ui/recipe-icon';
+import { use } from 'react';
 
 interface RecipeDetailsProps {
   params: Promise<{ id: string }>;
@@ -36,6 +34,8 @@ function RecipeContent({ id }: { id: string }) {
   };
 
   const fetchRecipe = async () => {
+    if (!id) return;
+    
     try {
       setLoading(true);
       // First check for a customized version in user_recipes
@@ -105,9 +105,9 @@ function RecipeContent({ id }: { id: string }) {
     toast.success('Recipe updated successfully');
   };
 
-  const handleRecipeRestore = async (originalRecipe: Recipe & { id: string }) => {
-    // Refetch the recipe to ensure we have the latest data
+  const handleRecipeRestore = async () => {
     await fetchRecipe();
+    toast.success('Recipe restored to original version');
   };
 
   if (loading) return <div>Loading...</div>;
@@ -209,36 +209,35 @@ function LikeButton({ recipe }: { recipe: Recipe }) {
   const router = useRouter();
 
   useEffect(() => {
+    let mounted = true;
+    
     if (!user || !recipe?.id || !db) {
       setLoading(false);
       return;
     }
 
     const checkIfLiked = async () => {
-      console.log('🔍 Checking if recipe is liked:', recipe.id);
       try {
         const docRef = doc(db, 'liked_recipes', recipe.id);
         const docSnap = await getDoc(docRef);
-        const liked = docSnap.exists();
-        console.log('📊 Recipe liked status:', liked);
-        setIsLiked(liked);
+        if (mounted) {
+          setIsLiked(docSnap.exists());
+          setLoading(false);
+        }
       } catch (error) {
-        console.error('❌ Error checking like status:', error);
-      } finally {
-        setLoading(false);
+        console.error('Error checking like status:', error);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
     checkIfLiked();
+    return () => { mounted = false; };
   }, [recipe?.id, user]);
 
   const handleLike = async () => {
-    console.log('🔄 Like button clicked');
-    console.log('Current isLiked state:', isLiked);
-    console.log('Recipe data:', recipe);
-    
     if (!user) {
-      console.log('❌ No user found - redirecting to sign in');
       router.push('/auth/sign-in');
       return;
     }
@@ -246,10 +245,9 @@ function LikeButton({ recipe }: { recipe: Recipe }) {
     setLoading(true);
     try {
       await toggleLike(recipe);
-      setIsLiked(!isLiked); // Toggle the local state after successful operation
-      console.log('✅ Like operation completed. New isLiked state:', !isLiked);
+      setIsLiked(!isLiked);
     } catch (error) {
-      console.error('❌ Error in handleLike:', error);
+      console.error('Error in handleLike:', error);
     } finally {
       setLoading(false);
     }
@@ -264,9 +262,7 @@ function LikeButton({ recipe }: { recipe: Recipe }) {
       disabled={loading}
     >
       <Heart className={isLiked ? "fill-current" : ""} />
-      {!user && (
-        <span className="sr-only">Sign in to like this recipe</span>
-      )}
+      {!user && <span className="sr-only">Sign in to like this recipe</span>}
     </Button>
   );
 }

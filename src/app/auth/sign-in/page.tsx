@@ -24,8 +24,9 @@ export default function SignIn() {
     try {
       await signIn(email, password);
       router.push('/');
-    } catch (error) {
-      setError('Failed to sign in. Please check your credentials.');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to sign in. Please check your credentials.';
+      setError(errorMessage);
     }
 
     setLoading(false);
@@ -38,8 +39,9 @@ export default function SignIn() {
     try {
       await signInWithGoogle();
       router.push('/');
-    } catch (error) {
-      setError('Failed to sign in with Google.');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to sign in with Google.';
+      setError(errorMessage);
     }
 
     setLoading(false);

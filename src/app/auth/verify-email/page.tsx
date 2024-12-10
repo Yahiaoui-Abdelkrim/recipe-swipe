@@ -27,8 +27,9 @@ export default function VerifyEmail() {
     try {
       await sendVerificationEmail();
       setMessage('Verification email sent! Please check your inbox.');
-    } catch (error) {
-      setError('Failed to send verification email.');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to send verification email.';
+      setError(errorMessage);
     }
 
     setLoading(false);
@@ -47,7 +48,7 @@ export default function VerifyEmail() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-center text-muted-foreground">
-            We've sent a verification email to <strong>{user.email}</strong>.
+            We&apos;ve sent a verification email to <strong>{user.email}</strong>.
             Please check your inbox and click the verification link.
           </p>
 

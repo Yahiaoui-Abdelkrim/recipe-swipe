@@ -36,8 +36,9 @@ export default function SignUp() {
     try {
       await signUp(email, password);
       router.push('/auth/verify-email');
-    } catch (error) {
-      setError('Failed to create an account.');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create an account.';
+      setError(errorMessage);
     }
 
     setLoading(false);
@@ -50,8 +51,9 @@ export default function SignUp() {
     try {
       await signInWithGoogle();
       router.push('/');
-    } catch (error) {
-      setError('Failed to sign in with Google.');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to sign in with Google.';
+      setError(errorMessage);
     }
 
     setLoading(false);

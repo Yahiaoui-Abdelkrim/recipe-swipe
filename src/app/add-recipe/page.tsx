@@ -46,8 +46,6 @@ export default function AddRecipe() {
     measures: [''],
   });
 
-  const [isCorrectingName, setIsCorrectingName] = useState(false);
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setRecipe(prev => ({
@@ -211,11 +209,6 @@ export default function AddRecipe() {
                     required
                     className="pr-8"
                   />
-                  {isCorrectingName && (
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                    </div>
-                  )}
                 </div>
                 <Button
                   type="button"

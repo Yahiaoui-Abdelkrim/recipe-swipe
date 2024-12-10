@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { collection, getDocs, query, orderBy, doc, setDoc, getDoc, where } from 'firebase/firestore';
+import { useState, useEffect, useCallback } from 'react';
+import { collection, getDocs, query, doc, setDoc, getDoc, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,87 +24,85 @@ export default function WeeklyPlan() {
     [key: number]: (Recipe & { id: string })[];
   }>({});
 
-  useEffect(() => {
-    const fetchWeeklyRecipes = async () => {
-      if (!user) return;
+  const fetchWeeklyRecipes = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      // First, try to fetch existing weekly plan
+      const weeklyPlanRef = doc(db, 'weekly_plans', `${user.uid}_${currentWeek}`);
+      const weeklyPlanDoc = await getDoc(weeklyPlanRef);
       
-      try {
-        // First, try to fetch existing weekly plan
-        const weeklyPlanRef = doc(db, 'weekly_plans', `${user.uid}_${currentWeek}`);
-        const weeklyPlanDoc = await getDoc(weeklyPlanRef);
+      if (weeklyPlanDoc.exists()) {
+        const planData = weeklyPlanDoc.data();
+        setWeeklyRecipes(planData.recipes);
+        setWeeklyPlans(prev => ({
+          ...prev,
+          [currentWeek]: planData.recipes
+        }));
+        setIsValidated(planData.isValidated || false);
+      } else {
+        // If no existing plan, fetch from liked recipes
+        const querySnapshot = await getDocs(
+          query(
+            collection(db, 'liked_recipes'),
+            where('userId', '==', user.uid)
+          )
+        );
         
-        if (weeklyPlanDoc.exists()) {
-          const planData = weeklyPlanDoc.data();
-          setWeeklyRecipes(planData.recipes);
+        const recipesMap = new Map();
+        const invalidDocs: string[] = [];
+
+        querySnapshot.docs.forEach(doc => {
+          const validationResult = validateAndSanitizeRecipe(doc.id, doc.data());
+          
+          if (!validationResult.isValid) {
+            invalidDocs.push(doc.id);
+            console.error(
+              `Recipe document ${doc.id} is invalid:`,
+              validationResult.missingFields.join(', ')
+            );
+            return;
+          }
+
+          if (validationResult.sanitizedRecipe && !recipesMap.has(validationResult.sanitizedRecipe.id)) {
+            recipesMap.set(validationResult.sanitizedRecipe.id, validationResult.sanitizedRecipe);
+          }
+        });
+
+        if (invalidDocs.length > 0) {
+          console.warn(`Found ${invalidDocs.length} invalid recipe documents`);
+        }
+
+        const allRecipes = Array.from(recipesMap.values());
+        setAvailableRecipes(allRecipes);
+        
+        // Initialize current week if not already set
+        if (!weeklyPlans[currentWeek]) {
+          const numRecipes = Math.min(7, allRecipes.length);
+          const shuffled = [...allRecipes].sort(() => 0.5 - Math.random());
+          const initialPlan = shuffled.slice(0, numRecipes);
           setWeeklyPlans(prev => ({
             ...prev,
-            [currentWeek]: planData.recipes
+            [currentWeek]: initialPlan
           }));
-          setIsValidated(planData.isValidated || false);
-        } else {
-          // If no existing plan, fetch from liked recipes
-          const querySnapshot = await getDocs(
-            query(
-              collection(db, 'liked_recipes'),
-              where('userId', '==', user.uid)
-              // Temporarily remove orderBy until index is created
-              // orderBy('likedAt', 'desc')
-            )
-          );
-          
-          const recipesMap = new Map();
-          const invalidDocs: string[] = [];
-
-          querySnapshot.docs.forEach(doc => {
-            const validationResult = validateAndSanitizeRecipe(doc.id, doc.data());
-            
-            if (!validationResult.isValid) {
-              invalidDocs.push(doc.id);
-              console.error(
-                `Recipe document ${doc.id} is invalid:`,
-                validationResult.missingFields.join(', ')
-              );
-              return;
-            }
-
-            if (validationResult.sanitizedRecipe && !recipesMap.has(validationResult.sanitizedRecipe.id)) {
-              recipesMap.set(validationResult.sanitizedRecipe.id, validationResult.sanitizedRecipe);
-            }
-          });
-
-          if (invalidDocs.length > 0) {
-            console.warn(`Found ${invalidDocs.length} invalid recipe documents`);
-          }
-
-          const allRecipes = Array.from(recipesMap.values());
-          setAvailableRecipes(allRecipes);
-          
-          // Initialize current week if not already set
-          if (!weeklyPlans[currentWeek]) {
-            const numRecipes = Math.min(7, allRecipes.length);
-            const shuffled = [...allRecipes].sort(() => 0.5 - Math.random());
-            const initialPlan = shuffled.slice(0, numRecipes);
-            setWeeklyPlans(prev => ({
-              ...prev,
-              [currentWeek]: initialPlan
-            }));
-            setWeeklyRecipes(initialPlan);
-          }
+          setWeeklyRecipes(initialPlan);
         }
-      } catch (error) {
-        console.error('Error fetching weekly recipes:', error);
-        shadowToast({
-          title: "Error",
-          description: "Failed to load weekly plan. Please try again.",
-          variant: "destructive"
-        });
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (error) {
+      console.error('Error fetching weekly recipes:', error);
+      shadowToast({
+        title: "Error",
+        description: "Failed to load weekly plan. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [user, currentWeek, weeklyPlans, shadowToast]);
 
+  useEffect(() => {
     fetchWeeklyRecipes();
-  }, [currentWeek, user]);
+  }, [fetchWeeklyRecipes]);
 
   const handleChangeRecipe = (index: number) => {
     console.log('🔄 Starting recipe change for index:', index);

@@ -1,49 +1,45 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Recipe } from '@/types/recipe';
 import Link from 'next/link';
 import debounce from 'lodash/debounce';
 import { searchRecipes } from '@/lib/mealdb';
 
-interface DietaryFilter {
-  id: string;
-  label: string;
-  active: boolean;
-}
-
 export default function SearchPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(false);
   
-  const debouncedSearch = debounce(async (term: string) => {
-    if (!term.trim()) {
-      setRecipes([]);
-      return;
-    }
-    
-    setLoading(true);
-    try {
-      const results = await searchRecipes(term);
-      setRecipes(results);
-    } catch (error) {
-      console.error('Error searching recipes:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, 500);
+  const debouncedSearch = useCallback(
+    debounce(async (term: string) => {
+      if (!term.trim()) {
+        setRecipes([]);
+        return;
+      }
+      
+      setLoading(true);
+      try {
+        const results = await searchRecipes(term);
+        setRecipes(results);
+      } catch (error) {
+        console.error('Error searching recipes:', error);
+      } finally {
+        setLoading(false);
+      }
+    }, 500),
+    []
+  );
 
   useEffect(() => {
     debouncedSearch(searchTerm);
     return () => {
       debouncedSearch.cancel();
     };
-  }, [searchTerm]);
+  }, [searchTerm, debouncedSearch]);
 
   return (
     <main className="max-w-4xl mx-auto p-4 mb-20">
