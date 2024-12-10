@@ -94,7 +94,6 @@ export default function Home() {
     <main className="flex min-h-screen flex-col items-center p-4">
       <div className="z-10 w-full max-w-4xl">
         <div className="flex flex-col items-center mb-8">
-          <h1 className="text-4xl font-bold text-center mb-4">Recipe Swiper</h1>
           <Button
             onClick={toggleView}
             variant="outline"

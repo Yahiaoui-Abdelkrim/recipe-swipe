@@ -37,6 +37,10 @@ export function Navigation() {
           )}
         </div>
 
+        <div className="absolute left-1/2 transform -translate-x-1/2">
+          <h1 className="text-xl font-bold">140 Recipes</h1>
+        </div>
+
         <div className="flex items-center gap-2">
           {user ? (
             <div className="flex items-center gap-4">
