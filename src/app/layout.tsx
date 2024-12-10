@@ -18,7 +18,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Recipe Swipe",
+  title: "140 Recipes",
   description: "Discover and save your favorite recipes",
 };
 

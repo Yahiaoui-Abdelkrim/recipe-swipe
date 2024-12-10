@@ -57,7 +57,7 @@ export default function Home() {
       <div className="min-h-[calc(100vh-5rem)] flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <CardTitle className="text-3xl font-bold">Recipe Swipe</CardTitle>
+            <CardTitle className="text-3xl font-bold">140 Recipes</CardTitle>
             <CardDescription className="text-lg mt-2">
               Discover, save, and organize your favorite recipes
             </CardDescription>
