@@ -115,11 +115,11 @@ function LikedRecipes() {
 
   return (
     <main className="max-w-4xl mx-auto p-4 mb-20">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Liked Recipes</h1>
-        <div className="flex gap-2 items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold">Liked Recipes</h1>
+        <div className="flex flex-wrap gap-2 items-center w-full sm:w-auto">
           <select
-            className="px-3 py-2 border rounded-md bg-background"
+            className="px-3 py-2 border rounded-md bg-background flex-1 sm:flex-none"
             value={pageSize}
             onChange={(e) => handlePageSizeChange(Number(e.target.value))}
           >
@@ -128,7 +128,7 @@ function LikedRecipes() {
             <option value="12">12 per page</option>
             <option value="15">15 per page</option>
           </select>
-          <Button onClick={() => window.location.href = '/add-recipe'}>
+          <Button onClick={() => window.location.href = '/add-recipe'} className="w-full sm:w-auto">
             Add Recipe
           </Button>
         </div>
@@ -138,14 +138,14 @@ function LikedRecipes() {
         <div className="text-center mt-8">No liked recipes yet</div>
       ) : (
         <>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {currentRecipes.map((recipe) => (
               <Link key={recipe.id} href={`/recipe/${recipe.id}`}>
                 <Card className="cursor-pointer hover:shadow-lg transition-shadow h-full flex flex-col group relative">
                   <Button
                     variant="destructive"
                     size="icon"
-                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                    className="absolute top-2 right-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity z-10"
                     onClick={(e) => handleDelete(recipe.id, e)}
                   >
                     <svg
@@ -165,7 +165,7 @@ function LikedRecipes() {
                     </svg>
                   </Button>
                   <CardHeader className="flex-none">
-                    <CardTitle className="text-xl leading-tight min-h-[3rem] line-clamp-2">
+                    <CardTitle className="text-lg sm:text-xl leading-tight min-h-[3rem] line-clamp-2">
                       {recipe.strMeal}
                     </CardTitle>
                   </CardHeader>
@@ -201,14 +201,15 @@ function LikedRecipes() {
           </div>
 
           <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div className="text-sm text-muted-foreground">
+            <div className="text-sm text-muted-foreground text-center sm:text-left">
               Showing {startIndex + 1} to {Math.min(endIndex, recipes.length)} of {recipes.length} recipes
             </div>
-            <div className="flex justify-center gap-2">
+            <div className="flex justify-center gap-2 w-full sm:w-auto">
               <Button
                 variant="outline"
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
+                className="flex-1 sm:flex-none"
               >
                 Previous
               </Button>
@@ -216,6 +217,7 @@ function LikedRecipes() {
                 variant="outline"
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
+                className="flex-1 sm:flex-none"
               >
                 Next
               </Button>
