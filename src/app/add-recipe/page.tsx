@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { validateAndSanitizeRecipe } from '@/lib/recipe-validator';
-import { generateRecipeWithAI } from '@/lib/gemini';
+import { generateRecipeWithAI, correctRecipeName } from '@/lib/gemini';
 import { nanoid } from 'nanoid';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Sparkles } from 'lucide-react';
@@ -45,6 +45,8 @@ export default function AddRecipe() {
     ingredients: [''],
     measures: [''],
   });
+
+  const [isCorrectingName, setIsCorrectingName] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -96,8 +98,18 @@ export default function AddRecipe() {
     setError('');
 
     try {
+      // First correct the recipe name
+      const correctedName = await correctRecipeName(recipe.strMeal);
+      
+      // Update the recipe name in the form
+      setRecipe(prev => ({
+        ...prev,
+        strMeal: correctedName
+      }));
+
+      // Generate the recipe with corrected name
       const generatedRecipe = await generateRecipeWithAI({
-        recipeName: recipe.strMeal,
+        recipeName: correctedName,
         dietaryPreferences: selectedDiets,
         cuisineType: selectedCuisine,
         shouldSave: false,
@@ -190,14 +202,21 @@ export default function AddRecipe() {
             <div className="space-y-2">
               <Label htmlFor="strMeal">Recipe Name *</Label>
               <div className="flex gap-2">
-                <Input
-                  id="strMeal"
-                  name="strMeal"
-                  value={recipe.strMeal}
-                  onChange={handleInputChange}
-                  required
-                  className="flex-1"
-                />
+                <div className="relative flex-1">
+                  <Input
+                    id="strMeal"
+                    name="strMeal"
+                    value={recipe.strMeal}
+                    onChange={handleInputChange}
+                    required
+                    className="pr-8"
+                  />
+                  {isCorrectingName && (
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
                 <Button
                   type="button"
                   onClick={handleGenerateRecipe}

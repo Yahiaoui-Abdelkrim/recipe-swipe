@@ -13,58 +13,62 @@ interface GenerateRecipeParams {
   shouldSave?: boolean;
 }
 
+export async function correctRecipeName(name: string): Promise<string> {
+  const prompt = `You are a culinary expert. Please correct the spelling and formatting of this recipe name: "${name}". 
+  Consider:
+  1. Common recipe name misspellings (e.g., "futtucini" → "fettuccine")
+  2. Proper capitalization (e.g., "pad thai" → "Pad Thai")
+  3. Traditional spellings (e.g., "curry puff" → "Karipap")
+  4. Regional variations (e.g., "expresso" → "Espresso")
+
+  Return ONLY the corrected name, nothing else. If the name is already correct, return it as is.`;
+
+  try {
+    const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: prompt,
+              },
+            ],
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('Failed to correct recipe name');
+      return name;
+    }
+
+    const data = await response.json();
+    const correctedName = data.candidates[0].content.parts[0].text.trim();
+    
+    // If the AI returns a long explanation instead of just the name, return the original
+    if (correctedName.split(' ').length > 10) {
+      return name;
+    }
+
+    return correctedName;
+  } catch (error) {
+    console.error('Error correcting recipe name:', error);
+    return name;
+  }
+}
+
 export async function generateRecipeWithAI({
   recipeName,
   dietaryPreferences = [],
   cuisineType,
   shouldSave = false,
 }: GenerateRecipeParams) {
-  // Format recipe title with preferences
-  const formatTitle = (name: string) => {
-    const parts = [name.trim()];
-    
-    if (cuisineType) {
-      parts.push(`(${cuisineType} Style)`);
-    }
-    
-    if (dietaryPreferences?.length) {
-      parts.push(`[${dietaryPreferences.join(', ')}]`);
-    }
-    
-    // Capitalize first letter of each word in the base name
-    const formattedName = parts[0].split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
-    
-    parts[0] = formattedName;
-    return parts.join(' ');
-  };
-
-  // Correct common recipe name misspellings
-  const correctRecipeName = (name: string) => {
-    const corrections: { [key: string]: string } = {
-      'futtucini': 'fettuccine',
-      'fetuccini': 'fettuccine',
-      'fettucini': 'fettuccine',
-      'spagetti': 'spaghetti',
-      'linguini': 'linguine',
-      'penne arabiata': 'penne all\'arrabbiata',
-      // Add more corrections as needed
-    };
-
-    const nameLower = name.toLowerCase();
-    for (const [incorrect, correct] of Object.entries(corrections)) {
-      if (nameLower.includes(incorrect)) {
-        return nameLower.replace(incorrect, correct);
-      }
-    }
-    return name;
-  };
-
-  const correctedName = correctRecipeName(recipeName);
-  const formattedName = formatTitle(correctedName);
-
-  const prompt = `Generate a detailed recipe for "${formattedName}"${
+  const prompt = `Generate a detailed recipe for "${recipeName}"${
     cuisineType ? ` in ${cuisineType} cuisine style` : ''
   }${
     dietaryPreferences.length > 0
@@ -131,13 +135,13 @@ Make sure:
       imageUrl.startsWith('http');
 
     const generatedRecipe = {
-      strMeal: formattedName,
+      strMeal: recipeName,
       strCategory: recipeData.strCategory,
       strArea: recipeData.strArea || (cuisineType || 'Unknown'),
       strInstructions: recipeData.strInstructions,
       ingredients: recipeData.ingredients,
       measures: recipeData.measures,
-      strMealThumb: isValidImageUrl ? imageUrl : 'https://www.themealdb.com/images/media/meals/default.jpg',
+      strMealThumb: isValidImageUrl ? imageUrl : '/recipe-placeholder.jpg',
       dietaryPreferences: dietaryPreferences,
     };
 
